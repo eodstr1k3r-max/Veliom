@@ -1,6 +1,6 @@
 {
   "name": "veliom",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Ultra-fast, minimal frontend framework with API-agnostic design",
   "type": "module",
   "main": "./dist/veliom.js",
