@@ -38,14 +38,14 @@
     "lightweight",
     "components"
   ],
-  "author": "",
+  "author": "DerStr1k3r",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/veliom"
+    "url": "https://github.com/eodstr1k3r-max/Veliom"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/veliom/issues"
+    "url": "https://github.com/eodstr1k3r-max/Veliom/issues"
   },
   "devDependencies": {
     "@vitest/ui": "^1.0.0",
