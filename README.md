@@ -1,20 +1,29 @@
-# Veliom
+# Veliom 🚀
 
 **Ultra-fast, minimal frontend framework with API-agnostic design**
 
 [![CI](https://github.com/eodstr1k3r-max/Veliom/actions/workflows/ci.yml/badge.svg)](https://github.com/eodstr1k3r-max/Veliom/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/veliom.svg)](https://www.npmjs.com/package/veliom)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Downloads](https://img.shields.io/npm/dm/veliom)](https://www.npmjs.com/package/veliom)
 
 ---
 
 ## Why Veliom?
 
-- **Performance First**: Every feature justifies its cost
-- **Minimal Core**: No bloat, just what you need
-- **API-Agnostic**: Use fetch, axios, GraphQL - your choice
-- **TypeScript Native**: Full type safety out of the box
-- **Lightweight**: ~5KB minified + gzip
+<p align="center">
+  <img src="https://img.shields.io/badge/⚡-High%20Performance-blue" alt="Performance">
+  <img src="https://img.shields.io/badge/📦-~5KB-gold" alt="Size">
+  <img src="https://img.shields.io/badge/🔷-TypeScript-green" alt="TypeScript">
+  <img src="https://img.shields.io/badge/🔒-Security%20First-red" alt="Security">
+</p>
+
+- **Performance First** - Every feature justifies its cost
+- **Minimal Core** - No bloat, just what you need
+- **API-Agnostic** - Use fetch, axios, GraphQL - your choice
+- **TypeScript Native** - Full type safety out of the box
+- **Security-Aware** - Built-in XSS protection
+- **Production Ready** - Tested and battle-hardened
 
 ---
 
@@ -41,56 +50,68 @@ mount(Counter, document.getElementById('app')!);
 
 ---
 
-## Core Features
+## Features at a Glance
 
-### Rendering Engine
+### ⚡ High-Performance Rendering
 - Virtual DOM with efficient diffing
-- Event delegation for performance
+- Event delegation (O(n) vs O(n×m))
 - Keyed reconciliation
-- Fragment support
+- VNode pooling for reduced GC pressure
+- Batched updates
 
-### State Management
+### 🔄 Reactive State Management
 ```typescript
-// Signals - reactive values
+// Signals
 const count = createSignal(0);
 count.set(5);
 count.update(n => n + 1);
 
-// Store - structured state
+// Store
 const store = createStore({ user: null, loading: false });
 store.set('loading', true);
 
-// Computed - derived values
+// Computed
 const fullName = createComputed(
   () => `${firstName.get()} ${lastName.get()}`,
   [firstName, lastName]
 );
 ```
 
-### Component System
+### 🪝 React-like Hooks
 ```typescript
 const App = createComponent(() => {
   const [getCount, setCount] = useState(0);
 
-  return () => h('div', null,
-    h('h1', null, 'Hello Veliom!')
-  );
+  useEffect(() => {
+    document.title = `Count: ${getCount()}`;
+  }, [getCount]);
+
+  const doubled = useMemo(() => getCount() * 2, [getCount]);
+
+  return () => h('div', null, ...);
 });
 ```
 
-### Control Flow
+### 🧩 Component System
+```typescript
+const Button = createComponent((props) => {
+  return () => h('button', { class: props.class }, props.children);
+});
+```
+
+### 🎯 Control Flow
 ```typescript
 // Conditional
 Show({ when: isLoggedIn, children: () => h('div', null, 'Welcome!') });
 
-// Lists
+// Lists with keys
 For({ each: items, children: (item) => h('li', { key: item.id }, item.name) });
 
 // Fragments
 Fragment({ children: [h('h1', null), h('p', null)] });
 ```
 
-### Lazy Loading
+### 📦 Lazy Loading
 ```typescript
 const LazyComponent = lazy(() => import('./Heavy'));
 
@@ -100,22 +121,19 @@ Suspense({
 });
 ```
 
+### 🔒 Security
+- Built-in XSS protection
+- Sanitizes dangerous protocols (`javascript:`, `data:`, etc.)
+- State isolation between components
+
 ---
 
 ## API-Agnostic Design
 
-Veliom intentionally does NOT include:
-- HTTP clients
-- API wrappers
-- Data fetching abstractions
-
-You are free to use:
-- `fetch`
-- `axios`
-- GraphQL clients
-- Any library you prefer
+Veliom intentionally does NOT include HTTP clients or data fetching. You're free to use whatever you want:
 
 ```typescript
+// fetch, axios, GraphQL - your choice!
 const DataComponent = createComponent(() => {
   const data = createSignal<Data[]>([]);
   const loading = createSignal(false);
@@ -133,7 +151,7 @@ const DataComponent = createComponent(() => {
 
 ---
 
-## Performance
+## Performance Benchmarks
 
 | Feature | Impact |
 |---------|--------|
@@ -153,7 +171,7 @@ src/
 │   ├── component.ts   # Component system
 │   ├── control.ts     # Show, For, Fragment
 │   ├── lazy.ts        # Lazy loading
-│   ├── suspense.ts     # Suspense component
+│   ├── suspense.ts    # Suspense component
 │   ├── portal.ts      # Portal rendering
 │   ├── refs.ts        # Ref system
 │   └── error.ts       # Error handling
@@ -196,18 +214,22 @@ npm run typecheck
 
 ## Browser Support
 
-- Chrome/Edge 88+
-- Firefox 78+
-- Safari 14+
+| Browser | Version |
+|---------|---------|
+| Chrome/Edge | 88+ |
+| Firefox | 78+ |
+| Safari | 14+ |
 
 ---
 
 ## License
 
-MIT
+MIT © 2026 DerStr1k3r
 
 ---
 
 ## Contributing
 
 Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+⭐ Star this repo if you find it useful!
