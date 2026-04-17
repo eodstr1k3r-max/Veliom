@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Veliom - API Example</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f1a;
+      color: #eaeaea;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .api-demo {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 2rem;
+      color: #00d9ff;
+      margin-bottom: 0.5rem;
+    }
+
+    .description {
+      color: #666;
+      margin-bottom: 2rem;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .tabs button {
+      padding: 0.75rem 1.5rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #888;
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tabs button:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .tabs button.active {
+      background: rgba(0, 217, 255, 0.1);
+      border-color: #00d9ff;
+      color: #00d9ff;
+    }
+
+    .user-list,
+    .search-example {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 1.5rem;
+      border-radius: 0 12px 12px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-top: none;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    h2 {
+      color: #00d9ff;
+      font-size: 1.2rem;
+    }
+
+    button {
+      padding: 0.5rem 1rem;
+      background: #0f3460;
+      border: 1px solid rgba(0, 217, 255, 0.3);
+      color: #eaeaea;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button:hover:not(:disabled) {
+      background: #1a4a7a;
+      border-color: #00d9ff;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: #888;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(0, 217, 255, 0.2);
+      border-top-color: #00d9ff;
+      border-radius: 50%;
+      margin: 0 auto 1rem;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error {
+      text-align: center;
+      padding: 2rem;
+      background: rgba(255, 68, 68, 0.1);
+      border-radius: 8px;
+      color: #ff4444;
+    }
+
+    .error button {
+      margin-top: 1rem;
+      background: rgba(255, 68, 68, 0.2);
+    }
+
+    .user-card {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 8px;
+      margin: 0.75rem 0;
+      transition: all 0.2s;
+    }
+
+    .user-card:hover {
+      background: rgba(255, 255, 255, 0.05);
+      transform: translateX(5px);
+    }
+
+    .avatar {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, #00d9ff, #00ff88);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #0f0f1a;
+    }
+
+    .info {
+      flex: 1;
+    }
+
+    .info h3 {
+      color: #eaeaea;
+      font-size: 1rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .info .email {
+      color: #888;
+      font-size: 0.85rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .info .company {
+      color: #00d9ff;
+      font-size: 0.8rem;
+    }
+
+    input {
+      width: 100%;
+      padding: 1rem;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: #eaeaea;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus {
+      border-color: #00d9ff;
+    }
+
+    .count {
+      margin: 1rem 0;
+      color: #888;
+    }
+
+    .result-item {
+      padding: 0.75rem;
+      margin: 0.5rem 0;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 6px;
+    }
+
+    .result-item strong {
+      color: #00d9ff;
+    }
+
+    .result-item span {
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="./api-example.ts"></script>
+</body>
+</html>
