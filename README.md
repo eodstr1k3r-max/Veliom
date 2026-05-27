@@ -22,7 +22,7 @@
 - **API-Agnostic** — Use fetch, axios, GraphQL — your choice
 - **TypeScript Native** — Full type safety out of the box
 - **Security-Aware** — Built-in XSS protection
-- **Production Ready** — 280+ tests, strict-mode clean
+- **Production Ready** — 280+ tests, strict-mode clean (v0.2.1)
 
 ---
 
@@ -58,7 +58,8 @@ render(h(App), document.getElementById('app')!);
 ## Features
 
 ### ⚡ High-Performance Rendering
-- Virtual DOM with efficient diffing & keyed reconciliation
+- Virtual DOM with efficient diffing & LIS-based keyed reconciliation (O(n log n) minimal DOM moves)
+- RAF-batched DOM update queue (`scheduleDOMUpdate` / `flushDOMUpdates`)
 - Event delegation — O(n) instead of O(n×m)
 - Batched updates with `batch()`
 - Style object support, `classList` (string/array/object)
@@ -91,7 +92,7 @@ const isLarge = createMediaQuery('(min-width: 768px)');
 const sum = combineSignals([a, b], () => a.get() + b.get());
 ```
 
-### 🪝 Hooks (21+)
+### 🪝 Hooks (25+)
 ```typescript
 const App = createComponent(() => {
   const [getCount, setCount] = useState(0);
@@ -201,6 +202,69 @@ h(Teleport, { to: '#portal-root' }, h('div', null, 'Teleported content'));
 Dynamic({ component: isDiv ? 'div' : MyComponent, props: { class: 'dynamic' } });
 ```
 
+### 🧩 Plugin System
+```typescript
+import { usePlugin, Plugin } from 'veliom';
+
+const logger: Plugin = {
+  name: 'logger',
+  hooks: {
+    beforeCreate: (vnode) => console.log('creating', vnode.type),
+    mounted: (vnode) => console.log('mounted', vnode.type),
+    beforeUnmount: (vnode) => console.log('unmounting', vnode.type),
+  },
+};
+
+usePlugin(logger);
+```
+Available hooks: `beforeCreate`, `created`, `beforeMount`, `mounted`, `beforeUpdate`, `updated`, `beforeUnmount`, `unmounted`.
+
+### 🔁 KeepAlive
+```typescript
+import { KeepAlive, clearKeepAliveCache } from 'veliom';
+
+// Caches DOM + VNode by key on first render
+h(KeepAlive, { key: 'tab-1' }, h(TabContent));
+
+// Clear single or all cache entries
+clearKeepAliveCache('tab-1');
+clearKeepAliveCache(); // all
+```
+
+### 🎬 Transition (Enter/Leave)
+```typescript
+import { Transition, createTransitionClasses, leaveTransition } from 'veliom';
+
+// CSS class-based enter/leave
+h(Transition, { show: isVisible, name: 'fade' }, h('div', null, 'Content'));
+
+// Manual enter animation
+createTransitionClasses(el, 'fade', () => console.log('enter done'));
+
+// Manual leave animation
+leaveTransition(el, 'fade', () => console.log('leave done'));
+```
+Applies classes: `{name}-enter-from`, `{name}-enter-active`, `{name}-enter-to` / `{name}-leave-from`, `{name}-leave-active`, `{name}-leave-to`.
+
+### 🌐 Server-Side Rendering
+```typescript
+import { renderToString, renderToStringWithData, h } from 'veliom';
+
+const html = renderToString(h('div', { class: 'app' }, 'Hello SSR'));
+// '<div class="app">Hello SSR</div>'
+
+const withData = renderToStringWithData(appVNode, { user: { id: 1 } });
+// Appends script with window.__INITIAL_DATA__
+```
+
+### 🔧 DevTools Hook
+```typescript
+// window.__VELIOM_DEVTOOLS__ is set automatically on import
+const devtools = (window as any).__VELIOM_DEVTOOLS__;
+console.log(devtools.getState());
+// { components: [...], signals: [...] }
+```
+
 ### Context
 ```typescript
 const Theme = createContext('light');
@@ -260,6 +324,7 @@ Children.count(children);            // Total child count
 | `useHover` | `() => boolean` | Element hover |
 | `useScrollPosition` | `{ x, y }` | Scroll position |
 | `useIdleTimer` | `() => boolean` | User idle detection |
+| `useVirtualList` | `{ visibleItems, totalHeight, scrollTo }` | Virtual scrolling |
 
 ---
 
@@ -300,8 +365,8 @@ const DataComponent = createComponent(() => {
 | Feature | Impact |
 |---------|--------|
 | Event Delegation | O(n) instead of O(n×m) |
-| Keyed Reconciliation | Minimal DOM operations |
-| Batched Updates | Single re-render per batch |
+| LIS Keyed Reconciliation | Minimal DOM moves (O(n log n)) |
+| RAF-Batched Updates | Single DOM write per frame |
 | VNode Pooling | Reduced GC pressure |
 
 ---
