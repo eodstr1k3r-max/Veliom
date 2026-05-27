@@ -157,3 +157,29 @@ export {
   createAsync,
   AsyncState,
 } from './state/async';
+export {
+  scheduleDOMUpdate,
+  flushDOMUpdates,
+} from './core/scheduler';
+export {
+  usePlugin,
+  Plugin,
+  PluginHooks,
+} from './core/plugin';
+export {
+  KeepAlive,
+  clearKeepAliveCache,
+} from './core/keepAlive';
+export {
+  Transition,
+  createTransitionClasses,
+  leaveTransition,
+  TransitionProps,
+} from './core/transition';
+export {
+  renderToString,
+  renderToStringWithData,
+} from './core/ssr';
+export {
+  useVirtualList,
+} from './state/hooks';

@@ -16,6 +16,8 @@ export interface DOMNode {
   vnode: VNode;
 }
 
+import { longestIncreasingSubsequence } from '../utils/lis';
+
 const nodePool: VNode[] = [];
 
 function getVNode(): VNode {
@@ -302,7 +304,7 @@ function reconcile(
   parent: Element,
   oldChildren: VNode[],
   newChildren: VNode[],
-  oldKeyMap: Map<string | number, VNode>,
+  _oldKeyMap: Map<string | number, VNode>,
   newKeyMap: Map<string | number, VNode>,
 ): void {
   const oldLen = oldChildren.length;
@@ -337,55 +339,78 @@ function reconcile(
   }
 
   if (oldHead > oldTail) {
-    while (newHead <= newTail) {
-      const refNode = newChildren[newTail + 1]?.ref?.nextSibling ?? null;
-      appendToParent(parent, createElement(newChildren[newHead]), refNode);
-      newHead++;
+    for (let i = newHead; i <= newTail; i++) {
+      const refNode = newChildren[i + 1]?.ref ?? null;
+      appendToParent(parent, createElement(newChildren[i]), refNode);
     }
-  } else if (newHead > newTail) {
-    while (oldHead <= oldTail) {
-      const v = oldChildren[oldHead++];
+    return;
+  }
+
+  if (newHead > newTail) {
+    for (let i = oldHead; i <= oldTail; i++) {
+      const v = oldChildren[i];
       if (v?.ref) {
         removeVNode(v);
         parent.removeChild(v.ref);
       }
     }
-  } else {
-    const oldByKey = new Map<string | number, { vnode: VNode; idx: number }>();
-    for (let i = oldHead; i <= oldTail; i++) {
-      const oldV = oldChildren[i];
-      if (oldV) {
-        oldByKey.set(oldV.key ?? i, { vnode: oldV, idx: i });
+    return;
+  }
+
+  const oldByKey = new Map<string | number, { vnode: VNode; idx: number }>();
+  for (let i = oldHead; i <= oldTail; i++) {
+    const oldV = oldChildren[i];
+    if (oldV) {
+      oldByKey.set(oldV.key ?? i, { vnode: oldV, idx: i });
+    }
+  }
+
+  for (let i = oldHead; i <= oldTail; i++) {
+    const oldV = oldChildren[i];
+    if (oldV && oldV.ref) {
+      const key = oldV.key ?? i;
+      if (!newKeyMap.has(key)) {
+        removeVNode(oldV);
+        parent.removeChild(oldV.ref);
       }
     }
+  }
 
-    for (let i = oldHead; i <= oldTail; i++) {
-      const oldV = oldChildren[i];
-      if (oldV && oldV.ref) {
-        const key = oldV.key ?? i;
-        if (!newKeyMap.has(key)) {
-          removeVNode(oldV);
-          parent.removeChild(oldV.ref);
-        }
-      }
+  const source: number[] = [];
+  for (let i = newHead; i <= newTail; i++) {
+    const newV = newChildren[i];
+    if (!newV) continue;
+    const key = newV.key ?? i;
+    const existing = oldByKey.get(key);
+    if (existing) {
+      source.push(existing.idx);
     }
+  }
 
-    for (let i = newHead; i <= newTail; i++) {
-      const newV = newChildren[i];
-      if (!newV) continue;
-      const key = newV.key ?? i;
-      const existing = oldByKey.get(key);
-      if (existing) {
-        patchVNode(parent, existing.vnode, newV, existing.idx);
-        const domNode = newV.ref || existing.vnode.ref;
-        const nextSibling = i + 1 < newChildren.length ? newChildren[i + 1]?.ref ?? null : null;
+  const lis = longestIncreasingSubsequence(source);
+  const stable = new Set<number>();
+  for (let i = 0; i < lis.length; i++) {
+    stable.add(newHead + lis[i]);
+  }
+
+  for (let i = newTail; i >= newHead; i--) {
+    const newV = newChildren[i];
+    if (!newV) continue;
+    const key = newV.key ?? i;
+    const existing = oldByKey.get(key);
+    if (existing) {
+      patchVNode(parent, existing.vnode, newV, existing.idx);
+      newV.ref = existing.vnode.ref;
+      if (!stable.has(i)) {
+        const nextSibling = newChildren[i + 1]?.ref ?? null;
+        const domNode = newV.ref;
         if (domNode && domNode.parentNode && domNode.nextSibling !== nextSibling) {
           parent.insertBefore(domNode, nextSibling);
         }
-      } else {
-        const nextSibling = i + 1 < newChildren.length ? newChildren[i + 1]?.ref ?? null : null;
-        appendToParent(parent, createElement(newV), nextSibling);
       }
+    } else {
+      const nextSibling = newChildren[i + 1]?.ref ?? null;
+      appendToParent(parent, createElement(newV), nextSibling);
     }
   }
 }

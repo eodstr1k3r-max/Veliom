@@ -584,6 +584,49 @@ function depsEqual(a: unknown[], b: unknown[]): boolean {
   return true;
 }
 
+export function useVirtualList<T>(options: {
+  items: () => T[];
+  itemHeight: number;
+  overscan?: number;
+  containerRef: HTMLElement | null;
+}): {
+  visibleItems: () => Array<{ item: T; index: number; offsetY: number }>;
+  totalHeight: () => number;
+  scrollTo: (index: number) => void;
+} {
+  const container = options.containerRef;
+  const [scrollTop, setScrollTop] = useState(0);
+  const overscan = options.overscan ?? 5;
+
+  useEffect(() => {
+    if (!container) return;
+    const onScroll = () => setScrollTop(container.scrollTop);
+    container.addEventListener('scroll', onScroll, { passive: true });
+    return () => container.removeEventListener('scroll', onScroll);
+  }, [container]);
+
+  const totalHeight = () => options.items().length * options.itemHeight;
+
+  const visibleItems = () => {
+    const items = options.items();
+    const st = scrollTop();
+    const ch = container?.clientHeight ?? 0;
+    const startIdx = Math.max(0, Math.floor(st / options.itemHeight) - overscan);
+    const endIdx = Math.min(items.length, Math.ceil((st + ch) / options.itemHeight) + overscan);
+    const result: Array<{ item: T; index: number; offsetY: number }> = [];
+    for (let i = startIdx; i < endIdx; i++) {
+      result.push({ item: items[i], index: i, offsetY: i * options.itemHeight });
+    }
+    return result;
+  };
+
+  const scrollTo = (index: number) => {
+    if (container) container.scrollTop = index * options.itemHeight;
+  };
+
+  return { visibleItems, totalHeight, scrollTo };
+}
+
 export function createEffect<T>(
   sourceOrFn: Signal<unknown> | (() => unknown),
   fn?: (value: T) => void

@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-05-27
+
+### Added
+- RAF-Batching Scheduler (`scheduleDOMUpdate`/`flushDOMUpdates`) — queues DOM writes in a single `requestAnimationFrame`
+- Longest Increasing Subsequence (`lis`) — O(n log n) keyed DOM reconciliation minimizing element moves
+- Plugin System — 8 lifecycle hooks (`beforeCreate`→`unmounted`) via `usePlugin()`
+- KeepAlive — component instance caching by key with `clearKeepAliveCache()`
+- Transition — CSS class-based enter/leave animations with `transitionend` auto-cleanup
+- SSR — `renderToString(vnode)` / `renderToStringWithData(vnode, data)` for server-side rendering
+- DevTools — `window.__VELIOM_DEVTOOLS__` global hook exposing `getState`
+- `useVirtualList` — virtual scrolling with `visibleItems`, `totalHeight`, `scrollTo`
+
+### Changed
+- renderer.ts `reconcileChildren` — LIS-based reorder (reverse iteration newTail→newHead for stable ref anchors)
+
+### Infrastructure
+- ESLint 0 warnings, TypeScript strict clean
+- 19 test files, 280 tests passing
+- `build` + `typecheck` pass on all source
+
 ## [0.2.0] - 2026-05-27
 
 ### Fixed
