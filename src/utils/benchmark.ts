@@ -1,3 +1,6 @@
+import { h } from '../core/renderer';
+import { createSignal, batch } from '../state/store';
+
 export interface BenchmarkResult {
   name: string;
   iterations: number;
@@ -62,17 +65,17 @@ export function compareBenchmarks(
   console.log('├──────────────┬──────────┬───────────┬───────────┬────────────┤');
   console.log('│ Name         │ Ops/sec  │ Avg (μs)  │ Min (μs)  │ Max (μs)   │');
   console.log('├──────────────┼──────────┼───────────┼───────────┼────────────┤');
-  
+
   for (const result of benchmarks) {
     console.log(
       `│ ${result.name.padEnd(12)} │ ${result.opsPerSecond.toFixed(0).padStart(8)} │ ${(result.avgTime * 1000).toFixed(2).padStart(9)} │ ${(result.minTime * 1000).toFixed(2).padStart(9)} │ ${(result.maxTime * 1000).toFixed(2).padStart(10)} │`
     );
   }
-  
+
   console.log('└──────────────┴──────────┴───────────┴───────────┴────────────┘\n');
 
   if (benchmarks.length > 1) {
-    const fastest = benchmarks.reduce((a, b) => 
+    const fastest = benchmarks.reduce((a, b) =>
       a.opsPerSecond > b.opsPerSecond ? a : b
     );
     console.log(`Fastest: ${fastest.name} (${fastest.opsPerSecond.toFixed(0)} ops/sec)\n`);
@@ -87,19 +90,19 @@ export function runPerformanceTests(): void {
   const results: BenchmarkResult[] = [];
 
   results.push(benchmark('Signal Get', () => {
-    const s = { value: 42, get: () => 42 };
+    const s = createSignal(42);
     for (let i = 0; i < 1000; i++) s.get();
   }, { iterations: 500 }));
 
   results.push(benchmark('Signal Set', () => {
-    const listeners: (() => void)[] = [];
-    let value = 0;
-    const set = (v: number) => { value = v; listeners.forEach(l => l()); };
-    for (let i = 0; i < 100; i++) set(i);
+    const vals = Array.from({ length: 100 }, (_, i) => i);
+    for (const v of vals) {
+      const s = createSignal(v);
+      s.subscribe(() => {});
+    }
   }, { iterations: 500 }));
 
   results.push(benchmark('VNode Create', () => {
-    const h = (type: string, props: Record<string, unknown> = {}, ...children: unknown[]) => ({ type, props, children });
     for (let i = 0; i < 100; i++) {
       h('div', { className: 'container' },
         h('span', { id: 'item' }, 'text'),
@@ -108,11 +111,15 @@ export function runPerformanceTests(): void {
     }
   }, { iterations: 500 }));
 
-  results.push(benchmark('Array Map', () => {
-    const arr = [1, 2, 3, 4, 5];
-    for (let i = 0; i < 100; i++) {
-      arr.map(x => x * 2);
-    }
+  results.push(benchmark('Batch Updates', () => {
+    const s = createSignal(0);
+    let sum = 0; // eslint-disable-line @typescript-eslint/no-unused-vars
+    s.subscribe((v) => { sum += v; });
+    batch(() => {
+      for (let i = 0; i < 100; i++) {
+        s.set(i);
+      }
+    });
   }, { iterations: 500 }));
 
   compareBenchmarks(...results);

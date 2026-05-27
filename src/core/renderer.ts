@@ -8,6 +8,7 @@ export interface VNode {
 
 const FRAGMENT = 'fragment';
 const EMPTY = 'empty';
+const PORTAL = 'portal';
 
 export interface DOMNode {
   type: string;
@@ -16,15 +17,6 @@ export interface DOMNode {
 }
 
 const nodePool: VNode[] = [];
-const MAX_POOL_SIZE = 1000;
-
-function poolVNode(vnode: VNode): void {
-  if (nodePool.length < MAX_POOL_SIZE) {
-    vnode.children = undefined;
-    vnode.props = {};
-    nodePool.push(vnode);
-  }
-}
 
 function getVNode(): VNode {
   return nodePool.pop() || { type: '', props: {} };
@@ -38,7 +30,7 @@ export function h(
   const vnode = getVNode();
   vnode.type = type;
   vnode.props = props || {};
-  vnode.key = props?.key as string | undefined;
+  vnode.key = (props?.key as string) ?? undefined;
 
   const filteredChildren = children.filter(
     (c) => c !== null && c !== undefined && c !== ''
@@ -68,25 +60,22 @@ export function setEventContainer(container: Element): void {
 }
 
 function attachEvent(element: Element, key: string, handler: unknown): void {
-  if (!eventContainer) return;
-  
+  if (!eventContainer || typeof handler !== 'function') return;
+
   if (key.startsWith('on')) {
     const eventName = key.slice(2).toLowerCase();
     const listener = handler as EventListener;
-    
+
     if (!eventMap.has(eventName)) {
       eventMap.set(eventName, new Map());
       const container = eventContainer;
       const eventHandler = (e: Event) => {
-        const target = e.target as Element;
-        let node: Element | null = target;
+        let node: Element | null = e.target as Element;
         while (node && node !== container) {
           const handlerMap = eventMap.get(e.type);
           if (handlerMap) {
             const elHandler = handlerMap.get(node);
             if (elHandler) {
-              e.preventDefault();
-              e.stopPropagation();
               elHandler(e);
               return;
             }
@@ -96,8 +85,39 @@ function attachEvent(element: Element, key: string, handler: unknown): void {
       };
       container.addEventListener(eventName, eventHandler);
     }
-    
+
     eventMap.get(eventName)!.set(element, listener);
+  }
+}
+
+function detachEvent(element: Element, key: string): void {
+  if (key.startsWith('on')) {
+    const eventName = key.slice(2).toLowerCase();
+    const handlerMap = eventMap.get(eventName);
+    if (handlerMap) {
+      handlerMap.delete(element);
+      if (handlerMap.size === 0 && eventContainer) {
+        eventMap.delete(eventName);
+      }
+    }
+  }
+}
+
+function detachAllEvents(element: Element): void {
+  for (const [eventName, handlerMap] of eventMap) {
+    handlerMap.delete(element);
+    if (handlerMap.size === 0) {
+      eventMap.delete(eventName);
+    }
+  }
+}
+
+function execRef(ref: unknown, el: Element | null): void {
+  if (!ref) return;
+  if (typeof ref === 'function') {
+    ref(el);
+  } else if (ref && typeof ref === 'object' && 'current' in (ref as Record<string, unknown>)) {
+    (ref as { current: unknown }).current = el;
   }
 }
 
@@ -108,36 +128,82 @@ function isSafeAttribute(key: string, value: unknown): boolean {
   if (DANGEROUS_ATTRS.includes(key.toLowerCase())) {
     const strValue = String(value).toLowerCase().trim();
     for (const protocol of JAVASCRIPT_PROTOCOLS) {
-      if (strValue.startsWith(protocol)) {
-        return false;
-      }
+      if (strValue.startsWith(protocol)) return false;
     }
   }
   return true;
 }
 
-function applyProps(element: Element, props: Record<string, unknown>): void {
-  if (!props) return;
-  for (const [key, value] of Object.entries(props)) {
-    if (key === 'key' || key === 'children' || key === 'ref') continue;
-    
-    if (key === 'className') {
-      element.setAttribute('class', String(value));
-    } else if (key.startsWith('on') && typeof value === 'function') {
-      attachEvent(element, key, value);
-    } else if (key === 'style' && typeof value === 'object') {
-      Object.assign((element as HTMLElement).style, value);
-    } else if (value !== null && value !== undefined) {
-      if (!isSafeAttribute(key, value)) {
-        console.warn(`Veliom: Blocked potentially dangerous attribute "${key}" with value "${value}"`);
-        continue;
-      }
-      element.setAttribute(key, String(value));
-    }
+const ATTR_ALIAS: Record<string, string> = {
+  htmlFor: 'for',
+  className: 'class',
+  readOnly: 'readonly',
+  autoFocus: 'autofocus',
+  autoPlay: 'autoplay',
+  tabIndex: 'tabindex',
+  colSpan: 'colspan',
+  rowSpan: 'rowspan',
+  encType: 'enctype',
+  formAction: 'formaction',
+  httpEquiv: 'http-equiv',
+  acceptCharset: 'accept-charset',
+};
+
+function resolveClass(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return value.map(resolveClass).filter(Boolean).join(' ');
+  if (value && typeof value === 'object') {
+    return Object.entries(value)
+      .filter(([, v]) => v)
+      .map(([k]) => k)
+      .join(' ');
   }
+  return '';
 }
 
-function createElement(vnode: VNode, parent?: Element): Element | Text | Node[] {
+function setClass(element: Element, value: unknown): void {
+  element.setAttribute('class', resolveClass(value));
+}
+
+function applyProps(element: Element, props: Record<string, unknown>): void {
+  if (!props) return;
+  const ref = 'ref' in props ? props.ref : undefined;
+
+  for (const [key, value] of Object.entries(props)) {
+    if (key === 'key' || key === 'children' || key === 'ref') continue;
+
+    const attrKey = ATTR_ALIAS[key] ?? key;
+
+    if (key === 'className' || key === 'classList') {
+      setClass(element, value);
+    } else if (key.startsWith('on')) {
+      if (typeof value === 'function') {
+        attachEvent(element, key, value);
+      }
+    } else if (key === 'style' && typeof value === 'object' && value !== null) {
+      Object.assign((element as HTMLElement).style, value);
+    } else if (key === 'dangerouslySetInnerHTML' && typeof value === 'object' && value !== null) {
+      const html = (value as { __html: string }).__html;
+      if (typeof html === 'string') {
+        element.innerHTML = html;
+      }
+    } else if (key === 'value' && ('value' in element || element instanceof HTMLInputElement)) {
+      (element as HTMLInputElement).value = String(value);
+    } else if (key === 'checked' && element instanceof HTMLInputElement) {
+      element.checked = Boolean(value);
+    } else if (value !== null && value !== undefined) {
+      if (!isSafeAttribute(attrKey, value)) {
+        console.warn(`Veliom: Blocked dangerous attribute "${attrKey}"`);
+        continue;
+      }
+      element.setAttribute(attrKey, String(value));
+    }
+  }
+
+  if (ref) execRef(ref, element);
+}
+
+export function createElement(vnode: VNode, parent?: Element): Element | Text | Node[] {
   if (vnode.type === 'text') {
     return document.createTextNode(String(vnode.props.value));
   }
@@ -164,6 +230,27 @@ function createElement(vnode: VNode, parent?: Element): Element | Text | Node[] 
     return [];
   }
 
+  if (vnode.type === PORTAL) {
+    const target = (vnode.props.target as Element) || document.body;
+    if (vnode.children) {
+      for (let i = 0; i < vnode.children.length; i++) {
+        const child = vnode.children[i];
+        if (child && child.type !== EMPTY) {
+          const result = createElement(child, target);
+          if (Array.isArray(result)) {
+            for (let j = 0; j < result.length; j++) {
+              target.appendChild(result[j]);
+            }
+          } else if (result) {
+            target.appendChild(result);
+          }
+        }
+      }
+    }
+    vnode.ref = target;
+    return [];
+  }
+
   const element = document.createElement(vnode.type);
   applyProps(element, vnode.props);
 
@@ -187,13 +274,24 @@ function createElement(vnode: VNode, parent?: Element): Element | Text | Node[] 
   return element;
 }
 
+function removeVNode(vnode: VNode): void {
+  if (vnode.ref) {
+    detachAllEvents(vnode.ref as Element);
+    execRef(vnode.props.ref, null);
+  }
+  if (vnode.children) {
+    for (let i = 0; i < vnode.children.length; i++) {
+      if (vnode.children[i]) removeVNode(vnode.children[i]);
+    }
+  }
+}
+
 const EMPTY_ARR: VNode[] = [];
 
 function appendToParent(parent: Element, result: Element | Text | Node[], refNode?: Node | null): void {
   if (Array.isArray(result)) {
-    let ref: Node | null = refNode ?? null;
     for (let i = 0; i < result.length; i++) {
-      parent.insertBefore(result[i], ref);
+      parent.insertBefore(result[i], refNode ?? null);
     }
   } else if (result) {
     parent.insertBefore(result, refNode ?? null);
@@ -206,12 +304,9 @@ function reconcile(
   newChildren: VNode[],
   oldKeyMap: Map<string | number, VNode>,
   newKeyMap: Map<string | number, VNode>,
-  pools: { oldPool: VNode[]; newPool: VNode[] }
 ): void {
   const oldLen = oldChildren.length;
   const newLen = newChildren.length;
-  const maxLen = Math.max(oldLen, newLen);
-
   let oldHead = 0;
   let oldTail = oldLen - 1;
   let newHead = 0;
@@ -220,10 +315,8 @@ function reconcile(
   while (oldHead <= oldTail && newHead <= newTail) {
     const oldV = oldChildren[oldHead];
     const newV = newChildren[newHead];
-
     if (!oldV) { oldHead++; continue; }
     if (!newV) { newHead++; continue; }
-
     if (oldV.key === newV.key) {
       patchVNode(parent, oldV, newV, oldHead);
       oldHead++;
@@ -234,10 +327,8 @@ function reconcile(
   while (oldHead <= oldTail && newHead <= newTail) {
     const oldV = oldChildren[oldTail];
     const newV = newChildren[newTail];
-
     if (!oldV) { oldTail--; continue; }
     if (!newV) { newTail--; continue; }
-
     if (oldV.key === newV.key) {
       patchVNode(parent, oldV, newV, oldTail);
       oldTail--;
@@ -247,41 +338,53 @@ function reconcile(
 
   if (oldHead > oldTail) {
     while (newHead <= newTail) {
-      const idx = newTail;
-      const refNode = newChildren[idx] ? (newChildren[idx - 1]?.ref?.nextSibling as Node) : null;
+      const refNode = newChildren[newTail + 1]?.ref?.nextSibling ?? null;
       appendToParent(parent, createElement(newChildren[newHead]), refNode);
       newHead++;
     }
   } else if (newHead > newTail) {
     while (oldHead <= oldTail) {
       const v = oldChildren[oldHead++];
-      if (v?.ref) parent.removeChild(v.ref);
+      if (v?.ref) {
+        removeVNode(v);
+        parent.removeChild(v.ref);
+      }
     }
   } else {
-    const keyMoves = new Map<number, number>();
-    
-    for (let i = newHead; i <= newTail; i++) {
-      const key = newChildren[i]?.key ?? i;
-      keyMoves.set(i, oldKeyMap.has(key) ? oldChildren.indexOf(oldKeyMap.get(key)!) : -1);
-    }
-
-    for (let i = newHead; i <= newTail; i++) {
-      const key = newChildren[i]?.key ?? i;
-      const oldIdx = keyMoves.get(i) ?? -1;
-      
-      if (oldIdx === -1) {
-        const refNode = parent.childNodes[newHead - 1]?.nextSibling;
-        appendToParent(parent, createElement(newChildren[i]), refNode);
-      } else {
-        patchVNode(parent, oldChildren[oldIdx], newChildren[i], oldIdx);
+    const oldByKey = new Map<string | number, { vnode: VNode; idx: number }>();
+    for (let i = oldHead; i <= oldTail; i++) {
+      const oldV = oldChildren[i];
+      if (oldV) {
+        oldByKey.set(oldV.key ?? i, { vnode: oldV, idx: i });
       }
     }
 
     for (let i = oldHead; i <= oldTail; i++) {
-      const key = oldChildren[i]?.key ?? i;
-      const ref = oldChildren[i]?.ref;
-      if (!newKeyMap.has(key) && ref) {
-        parent.removeChild(ref);
+      const oldV = oldChildren[i];
+      if (oldV && oldV.ref) {
+        const key = oldV.key ?? i;
+        if (!newKeyMap.has(key)) {
+          removeVNode(oldV);
+          parent.removeChild(oldV.ref);
+        }
+      }
+    }
+
+    for (let i = newHead; i <= newTail; i++) {
+      const newV = newChildren[i];
+      if (!newV) continue;
+      const key = newV.key ?? i;
+      const existing = oldByKey.get(key);
+      if (existing) {
+        patchVNode(parent, existing.vnode, newV, existing.idx);
+        const domNode = newV.ref || existing.vnode.ref;
+        const nextSibling = i + 1 < newChildren.length ? newChildren[i + 1]?.ref ?? null : null;
+        if (domNode && domNode.parentNode && domNode.nextSibling !== nextSibling) {
+          parent.insertBefore(domNode, nextSibling);
+        }
+      } else {
+        const nextSibling = i + 1 < newChildren.length ? newChildren[i + 1]?.ref ?? null : null;
+        appendToParent(parent, createElement(newV), nextSibling);
       }
     }
   }
@@ -296,7 +399,7 @@ function patchVNode(
   if (oldVNode === newVNode) return;
 
   const existingElement = oldVNode.ref ?? (parent.childNodes[_index] as Element | Text | undefined);
-  
+
   if (!existingElement) {
     const newEl = createElement(newVNode);
     if (Array.isArray(newEl)) {
@@ -323,6 +426,7 @@ function patchVNode(
   if (oldVNode.type !== newVNode.type) {
     const newEl = createElement(newVNode);
     const oldEl = oldVNode.ref ? oldVNode.ref : (parent.childNodes[_index] as Node);
+    if (oldVNode.ref) removeVNode(oldVNode);
     if (Array.isArray(newEl)) {
       parent.replaceChild(newEl[0] || document.createTextNode(''), oldEl);
     } else {
@@ -333,17 +437,33 @@ function patchVNode(
   }
 
   const el = existingElement as Element;
-  const oldKeys = new Set(Object.keys(oldVNode.props));
+  const oldKeys = Object.keys(oldVNode.props);
   const newKeys = new Set(Object.keys(newVNode.props));
 
-  for (const key of oldKeys) {
+  for (let i = 0; i < oldKeys.length; i++) {
+    const key = oldKeys[i];
     if (!newKeys.has(key) && key !== 'key' && key !== 'children' && key !== 'ref') {
-      if (key === 'className') {
+      if (key.startsWith('on')) {
+        detachEvent(el, key);
+      }
+      const attrKey = ATTR_ALIAS[key] ?? key;
+      if (key === 'className' || key === 'classList') {
         el.removeAttribute('class');
-      } else {
-        el.removeAttribute(key);
+      } else if (key === 'value' && ('value' in el || el instanceof HTMLInputElement)) {
+        (el as HTMLInputElement).value = '';
+      } else if (key === 'checked' && el instanceof HTMLInputElement) {
+        el.checked = false;
+      } else if (key !== 'style' && key !== 'dangerouslySetInnerHTML') {
+        el.removeAttribute(attrKey);
       }
     }
+  }
+
+  const newRef = 'ref' in newVNode.props ? newVNode.props.ref : undefined;
+  const oldRef = 'ref' in oldVNode.props ? oldVNode.props.ref : undefined;
+  if (newRef !== oldRef) {
+    execRef(oldRef, null);
+    execRef(newRef, el);
   }
 
   for (const key of newKeys) {
@@ -351,18 +471,29 @@ function patchVNode(
     const oldVal = oldVNode.props[key];
     const newVal = newVNode.props[key];
     if (oldVal !== newVal) {
-      if (key === 'className') {
-        el.setAttribute('class', String(newVal));
-      } else if (key === 'style' && typeof newVal === 'object') {
+      const attrKey = ATTR_ALIAS[key] ?? key;
+
+      if (key === 'className' || key === 'classList') {
+        setClass(el, newVal);
+      } else if (key === 'style' && typeof newVal === 'object' && newVal !== null) {
         Object.assign((el as HTMLElement).style, newVal);
-      } else if (!key.startsWith('on') || typeof newVal !== 'function') {
-        if (newVal === null || newVal === undefined) {
-          el.removeAttribute(key);
-        } else {
-          el.setAttribute(key, String(newVal));
-        }
-      } else {
+      } else if (key === 'dangerouslySetInnerHTML' && typeof newVal === 'object' && newVal !== null) {
+        const html = (newVal as { __html: string }).__html;
+        if (typeof html === 'string') el.innerHTML = html;
+      } else if (key === 'value' && ('value' in el || el instanceof HTMLInputElement)) {
+        (el as HTMLInputElement).value = String(newVal);
+      } else if (key === 'checked' && el instanceof HTMLInputElement) {
+        el.checked = Boolean(newVal);
+      } else if (key.startsWith('on') && typeof newVal === 'function') {
         attachEvent(el, key, newVal);
+      } else if (key.startsWith('on')) {
+        detachEvent(el, key);
+      } else if (newVal === null || newVal === undefined) {
+        el.removeAttribute(attrKey);
+      } else if (isSafeAttribute(attrKey, newVal)) {
+        el.setAttribute(attrKey, String(newVal));
+      } else {
+        console.warn(`Veliom: Blocked dangerous attribute "${attrKey}"`);
       }
     }
   }
@@ -375,7 +506,6 @@ function patchVNode(
     newVNode.children || EMPTY_ARR,
     buildKeyMap(oldVNode.children || EMPTY_ARR),
     buildKeyMap(newVNode.children || EMPTY_ARR),
-    { oldPool: [], newPool: [] }
   );
 }
 
@@ -407,7 +537,7 @@ export function patch(container: Element, oldVNode: VNode, newVNode: VNode): voi
   if (oldVNode.type === FRAGMENT || newVNode.type === FRAGMENT) {
     const oldChildren = oldVNode.type === FRAGMENT ? (oldVNode.children || []) : [oldVNode];
     const newChildren = newVNode.type === FRAGMENT ? (newVNode.children || []) : [newVNode];
-    reconcile(container, oldChildren, newChildren, buildKeyMap(oldChildren), buildKeyMap(newChildren), { oldPool: [], newPool: [] });
+    reconcile(container, oldChildren, newChildren, buildKeyMap(oldChildren), buildKeyMap(newChildren));
     return;
   }
   patchVNode(container, oldVNode, newVNode, 0);

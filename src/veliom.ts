@@ -4,6 +4,7 @@ export {
   mount,
   update,
   unmount,
+  memo,
   Component,
   ComponentProps,
   ComponentRender,
@@ -12,16 +13,50 @@ export {
 export {
   createSignal,
   createStore,
+  createDeepStore,
   createComputed,
+  createMemo,
+  createMediaQuery,
+  combineSignals,
+  batch,
   Signal,
   Store,
   Computed,
+  Memo,
 } from './state/store';
+export {
+  createResource,
+  Resource,
+  ResourceState,
+} from './state/resource';
 export {
   useEffect,
   useMemo,
   useCallback,
   useState,
+  useRef,
+  useReducer,
+  useTransition,
+  usePrevious,
+  useDebouncedValue,
+  useEventListener,
+  useInterval,
+  useTimeout,
+  useMediaQuery,
+  useLocalStorage,
+  useForm,
+  useIntersectionObserver,
+  useResizeObserver,
+  useClipboard,
+  useDocumentTitle,
+  useOnlineStatus,
+  usePreferredColorScheme,
+  useGeolocation,
+  useWindowSize,
+  useKeyPress,
+  useHover,
+  useScrollPosition,
+  useIdleTimer,
   createEffect,
 } from './state/hooks';
 export {
@@ -33,6 +68,12 @@ export {
   getLifecycle,
 } from './state/lifecycle';
 export {
+  createContext,
+  useContext,
+  provideContext,
+  Context,
+} from './state/context';
+export {
   createRef,
   mergeRefs,
   Ref,
@@ -42,11 +83,22 @@ export {
 export {
   Fragment,
   Show,
+  Switch,
+  Match,
   For,
   Index,
 } from './core/control';
 export {
+  Await,
+  AwaitProps,
+} from './core/await';
+export {
+  Teleport,
+  TeleportProps,
+} from './core/teleport';
+export {
   createErrorBoundary,
+  ErrorBoundary,
   setGlobalErrorHandler,
   getGlobalErrorHandler,
   reportError,
@@ -77,3 +129,31 @@ export {
   BenchmarkResult,
   BenchmarkOptions,
 } from './utils/benchmark';
+export {
+  Dynamic,
+  DynamicProps,
+} from './core/dynamic';
+export {
+  Children,
+  toArray,
+  map as childrenMap,
+  forEach as childrenForEach,
+  only as childrenOnly,
+  count as childrenCount,
+} from './utils/children';
+export {
+  onClickOutside,
+} from './utils/events';
+export {
+  createRouter,
+  Route,
+  Link,
+  useRouter,
+  Router,
+  RouteDefinition,
+  RouterOptions,
+} from './core/router';
+export {
+  createAsync,
+  AsyncState,
+} from './state/async';

@@ -68,3 +68,20 @@ export function reportError(error: unknown): void {
     console.error(error);
   }
 }
+
+export function ErrorBoundary(props: {
+  fallback: VNode | ((error: Error) => VNode);
+  children?: VNode | VNode[] | (() => VNode | VNode[]);
+  onError?: (error: Error, info: ErrorInfo) => void;
+}): VNode {
+  const { fallback, children, onError } = props;
+  let result: VNode | VNode[];
+  try {
+    result = typeof children === 'function' ? (children as () => VNode | VNode[])() : (children || { type: 'empty', props: {} });
+  } catch (err) {
+    const errorObj = err instanceof Error ? err : new Error(String(err));
+    onError?.(errorObj, {});
+    return typeof fallback === 'function' ? fallback(errorObj) : fallback;
+  }
+  return Array.isArray(result) ? { type: 'fragment', props: {}, children: result } : result;
+}

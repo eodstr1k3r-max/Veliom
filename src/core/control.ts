@@ -19,13 +19,46 @@ export function Show(props: {
   return props.fallback || { type: 'empty', props: {} };
 }
 
+const MATCH_TYPE = 'match';
+
+export function Switch(props: {
+  children: VNode | VNode[];
+  fallback?: VNode;
+}): VNode {
+  const children = Array.isArray(props.children) ? props.children : [props.children];
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    if (child && child.type === MATCH_TYPE && child.props.when) {
+      const whenChildren = child.props.children as VNode | (() => VNode) | undefined;
+      if (typeof whenChildren === 'function') {
+        return whenChildren();
+      }
+      return whenChildren || { type: 'empty', props: {} };
+    }
+  }
+  return props.fallback || { type: 'empty', props: {} };
+}
+
+export function Match(props: {
+  when: boolean;
+  children?: VNode | (() => VNode);
+}): VNode {
+  return {
+    type: MATCH_TYPE,
+    props: { when: props.when, children: props.children },
+  };
+}
+
 export function For<T>(props: {
   each: T[];
   children: (item: T, index: number) => VNode;
+  key?: (item: T, index: number) => string | number;
 }): VNode {
   const children: VNode[] = [];
   for (let i = 0; i < props.each.length; i++) {
-    children.push(props.children(props.each[i], i));
+    const child = props.children(props.each[i], i);
+    child.key = (props.key ? String(props.key(props.each[i], i)) : String(i)) as any;
+    children.push(child);
   }
   return {
     type: 'fragment',
@@ -37,11 +70,14 @@ export function For<T>(props: {
 export function Index<T>(props: {
   each: T[];
   children: (item: () => T, index: number) => VNode;
+  key?: (item: T, index: number) => string | number;
 }): VNode {
   const children: VNode[] = [];
   for (let i = 0; i < props.each.length; i++) {
     const getter = () => props.each[i];
-    children.push(props.children(getter, i));
+    const child = props.children(getter, i);
+    child.key = (props.key ? String(props.key(props.each[i], i)) : String(i)) as any;
+    children.push(child);
   }
   return {
     type: 'fragment',

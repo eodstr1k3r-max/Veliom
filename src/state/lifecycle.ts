@@ -3,7 +3,7 @@ import type { ComponentInstance, ComponentProps } from '../core/component';
 type LifecycleHook = () => void | (() => void);
 type CleanupFn = () => void;
 
-interface LifecycleCallbacks {
+export interface LifecycleCallbacks {
   onMount?: LifecycleHook;
   onUpdate?: (prevProps: ComponentProps) => void;
   onUnmount?: CleanupFn;
@@ -28,6 +28,19 @@ export function unregisterLifecycle(instance: ComponentInstance): void {
 
 export function getLifecycle(instance: ComponentInstance): LifecycleCallbacks | undefined {
   return lifecycleRegistry.get(instance);
+}
+
+export function triggerOnMount(callbacks: LifecycleCallbacks): void {
+  if (callbacks.onMount) {
+    const cleanup = callbacks.onMount();
+    if (typeof cleanup === 'function') {
+      const originalUnmount = callbacks.onUnmount;
+      callbacks.onUnmount = () => {
+        cleanup();
+        originalUnmount?.();
+      };
+    }
+  }
 }
 
 export function onMount(fn: LifecycleHook): void {
@@ -72,10 +85,10 @@ export function onUnmount(fn: CleanupFn): void {
 
 const lifecycleStack: LifecycleCallbacks[] = [];
 
-export function pushLifecycleContext(): LifecycleCallbacks {
-  const ctx: LifecycleCallbacks = {};
-  lifecycleStack.push(ctx);
-  return ctx;
+export function pushLifecycleContext(ctx?: LifecycleCallbacks): LifecycleCallbacks {
+  const context = ctx ?? {};
+  lifecycleStack.push(context);
+  return context;
 }
 
 export function popLifecycleContext(): void {
@@ -84,42 +97,4 @@ export function popLifecycleContext(): void {
 
 export function getCurrentLifecycle(): LifecycleCallbacks | undefined {
   return lifecycleStack[lifecycleStack.length - 1];
-}
-
-export function createLifecycleHook<T extends LifecycleHook>(
-  hook: (fn: T) => void
-): T {
-  return ((fn: T) => {
-    hook(fn);
-  }) as T;
-}
-
-export function createSyncLifecycleHook<T extends LifecycleHook>(
-  hook: (fn: T) => void,
-  callbackKey: 'onMount' | 'onUnmount'
-): T {
-  return ((fn: T) => {
-    const callbacks = getCurrentLifecycle();
-    if (callbacks) {
-      const original = callbacks[callbackKey];
-      if (callbackKey === 'onMount') {
-        callbacks.onMount = () => {
-          original?.();
-          const cleanup = fn();
-          if (typeof cleanup === 'function') {
-            const originalUnmount = callbacks.onUnmount;
-            callbacks.onUnmount = () => {
-              cleanup();
-              originalUnmount?.();
-            };
-          }
-        };
-      } else {
-        callbacks.onUnmount = () => {
-          fn();
-          original?.();
-        };
-      }
-    }
-  }) as T;
 }
