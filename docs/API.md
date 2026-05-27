@@ -4,17 +4,22 @@
 
 1. [Core Functions](#core-functions)
 2. [Components](#components)
-3. [Control Flow](#control-flow)
-4. [Router](#router)
-5. [State Management](#state-management)
-6. [Hooks](#hooks)
-7. [Lifecycle](#lifecycle)
-8. [Context](#context)
-9. [Events](#events)
-10. [Children Utilities](#children-utilities)
-11. [Utilities](#utilities)
-12. [Error Handling](#error-handling)
-13. [Performance](#performance)
+3. [Plugin System](#plugin-system)
+4. [KeepAlive](#keepalive)
+5. [Transition](#transition)
+6. [Control Flow](#control-flow)
+7. [Router](#router)
+8. [State Management](#state-management)
+9. [Hooks](#hooks)
+10. [Lifecycle](#lifecycle)
+11. [Context](#context)
+12. [Events](#events)
+13. [Children Utilities](#children-utilities)
+14. [Utilities](#utilities)
+15. [Error Handling](#error-handling)
+16. [Performance](#performance)
+17. [Server-Side Rendering](#server-side-rendering)
+18. [DevTools](#devtools)
 
 ---
 
@@ -189,6 +194,117 @@ Shows fallback while lazy components load.
 
 ```typescript
 Suspense({ children: LazyComponent, fallback: h('div', null, 'Loading...') });
+```
+
+---
+
+## Plugin System
+
+### `usePlugin(plugin)`
+
+Registers a plugin globally. All plugin hooks run synchronously on every component lifecycle event.
+
+```typescript
+import { usePlugin, Plugin } from 'veliom';
+
+const logger: Plugin = {
+  name: 'logger',
+  hooks: {
+    beforeCreate: (vnode) => console.log('creating', vnode.type),
+    created: (vnode) => console.log('created', vnode.type),
+    beforeMount: (vnode) => console.log('mounting', vnode.type),
+    mounted: (vnode) => console.log('mounted', vnode.type),
+    beforeUpdate: (vnode) => console.log('updating', vnode.type),
+    updated: (vnode) => console.log('updated', vnode.type),
+    beforeUnmount: (vnode) => console.log('unmounting', vnode.type),
+    unmounted: (vnode) => console.log('unmounted', vnode.type),
+  },
+};
+
+usePlugin(logger);
+```
+
+### `Plugin` type
+
+```typescript
+interface Plugin {
+  name: string;
+  hooks: PluginHooks;
+}
+```
+
+### `PluginHooks`
+
+| Hook | When |
+|------|------|
+| `beforeCreate` | Before VNode creation |
+| `created` | After VNode creation |
+| `beforeMount` | Before DOM insertion |
+| `mounted` | After DOM insertion |
+| `beforeUpdate` | Before DOM patch |
+| `updated` | After DOM patch |
+| `beforeUnmount` | Before DOM removal |
+| `unmounted` | After DOM removal |
+
+---
+
+## KeepAlive
+
+### `KeepAlive`
+
+Caches a component's VNode + DOM element by key. On re-mount, restores the cached instance instead of creating a new one.
+
+```typescript
+import { KeepAlive, h } from 'veliom';
+
+// Wrapped component is cached by key
+h(KeepAlive, { key: 'tab-1' }, h(TabContent));
+h(KeepAlive, { key: 'tab-2' }, h(OtherTab));
+```
+
+### `clearKeepAliveCache(key?)`
+
+Clears the keep-alive cache.
+
+```typescript
+clearKeepAliveCache();      // clear all
+clearKeepAliveCache('tab-1'); // clear specific
+```
+
+---
+
+## Transition
+
+### `Transition`
+
+CSS class-based enter/leave animation component.
+
+```typescript
+import { Transition, h } from 'veliom';
+
+h(Transition, { show: isVisible, name: 'fade' },
+  h('div', null, 'Animated content')
+);
+```
+
+Applies CSS classes in order:
+- Enter: `{name}-enter-from` → `{name}-enter-active` → `{name}-enter-to` (removes `-from`/`-to` on `transitionend`)
+- Leave: `{name}-leave-from` → `{name}-leave-active` → `{name}-leave-to` (removes element on `transitionend`)
+
+### `createTransitionClasses(element, name, onDone?)`
+
+Manually applies enter classes to an element.
+
+```typescript
+createTransitionClasses(el, 'fade', () => console.log('enter complete'));
+```
+
+### `leaveTransition(element, name, onDone?)`
+
+Manually applies leave classes and calls `onDone` after transition ends.
+
+```typescript
+leaveTransition(el, 'fade', () => console.log('leave complete'));
 ```
 
 ---
@@ -620,6 +736,26 @@ const isIdle = useIdleTimer(30000); // default 60s
 isIdle(); // true after inactivity
 ```
 
+### `useVirtualList(items, options)`
+
+Virtual scrolling hook — renders only visible items.
+
+```typescript
+import { useVirtualList } from 'veliom';
+
+const items = Array.from({ length: 10000 }, (_, i) => `Item ${i}`);
+
+const { visibleItems, totalHeight, scrollTo } = useVirtualList(items, {
+  itemHeight: 50,
+  overscan: 5,
+  containerRef: containerEl,
+});
+
+visibleItems(); // { index, data, offsetY }[] — only visible + overscan
+totalHeight();  // total scroll height
+scrollTo(500);  // scroll to pixel position
+```
+
 ### `createEffect(fn)` / `createEffect(signal, callback)`
 
 ```typescript
@@ -784,6 +920,37 @@ Reports an error to the global handler.
 
 ## Performance
 
+### `scheduleDOMUpdate(fn)`
+
+Queues a DOM write to run in the next `requestAnimationFrame` callback. Batches multiple writes into a single frame.
+
+```typescript
+import { scheduleDOMUpdate, flushDOMUpdates } from 'veliom';
+
+scheduleDOMUpdate(() => {
+  el.style.width = `${newWidth}px`;
+});
+```
+
+### `flushDOMUpdates()`
+
+Immediately flushes any pending DOM updates (useful for testing).
+
+```typescript
+flushDOMUpdates(); // pending callbacks run synchronously
+```
+
+### `longestIncreasingSubsequence(sequence)`
+
+Returns indices forming the longest increasing subsequence (O(n log n)). Used internally by keyed reconciliation for minimal DOM moves.
+
+```typescript
+import { longestIncreasingSubsequence } from 'veliom';
+
+const indices = longestIncreasingSubsequence([0, 8, 4, 12, 2]);
+// [0, 2, 3] (values: 0, 4, 12)
+```
+
 ### `benchmark(name, fn, options?)`
 
 Runs a performance benchmark.
@@ -804,3 +971,48 @@ compareBenchmarks(result1, result2);
 ### `runPerformanceTests()`
 
 Runs predefined performance tests.
+
+---
+
+## Server-Side Rendering
+
+### `renderToString(vnode)`
+
+Converts a VNode tree to an HTML string. Supports fragments, portals (renders children only), text nodes, and void elements.
+
+```typescript
+import { renderToString, h } from 'veliom';
+
+const html = renderToString(h('div', { class: 'app' },
+  h('h1', null, 'Hello SSR'),
+  h('p', null, 'Server rendered content')
+));
+// '<div class="app"><h1>Hello SSR</h1><p>Server rendered content</p></div>'
+```
+
+Function components return empty string (run-time only).
+
+### `renderToStringWithData(vnode, data)`
+
+Renders VNode to HTML and appends a `<script>` tag with `window.__INITIAL_DATA__` for client hydration.
+
+```typescript
+const html = renderToStringWithData(appVNode, { user: { id: 1, name: 'Alice' } });
+// '<div>...</div><script>window.__INITIAL_DATA__=...</script>'
+```
+
+---
+
+## DevTools
+
+### `__VELIOM_DEVTOOLS__` (global hook)
+
+Set automatically on `window` when veliom is imported. Enables devtools integration.
+
+```typescript
+import 'veliom';
+
+const devtools = (window as any).__VELIOM_DEVTOOLS__;
+const state = devtools.getState();
+// { components: VNode[], signals: { name: string, value: any }[] }
+```

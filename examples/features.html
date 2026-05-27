@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Veliom v0.2.1 Features Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f1a; color: #eaeaea; min-height: 100vh; padding: 1rem;
+    }
+    section {
+      background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    h3 { color: #00d9ff; margin-bottom: 1rem; }
+    button {
+      padding: 0.5rem 1rem; border: 1px solid rgba(0,217,255,0.3);
+      background: #0f3460; color: #eaeaea; border-radius: 6px; cursor: pointer;
+      transition: all 0.2s;
+    }
+    button:hover { background: #1a4a7a; border-color: #00d9ff; }
+    input {
+      padding: 0.5rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px;
+      background: rgba(0,0,0,0.3); color: #eaeaea; width: 100%; outline: none;
+    }
+    input:focus { border-color: #00d9ff; }
+    .fade-enter-from { opacity: 0; }
+    .fade-enter-active { transition: opacity 0.3s ease; }
+    .fade-enter-to { opacity: 1; }
+    .fade-leave-from { opacity: 1; }
+    .fade-leave-active { transition: opacity 0.3s ease; }
+    .fade-leave-to { opacity: 0; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="./features-demo.ts"></script>
+</body>
+</html>
