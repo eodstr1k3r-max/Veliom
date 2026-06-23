@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2026-05-27
+
+### Fixed
+- `dangerouslySetInnerHTML` in SSR — produces valid HTML instead of malformed output
+- Plugin hook exceptions — `try/catch` per hook prevents one plugin from breaking the chain
+- Transition `transitionend` memory leak — `setTimeout` fallback + `transitioncancel` listener
+- KeepAlive empty-string key — `key !== undefined` check instead of truthy check
+- KeepAlive no longer returns opaque `{ type: 'keepAlive' }` VNode; returns the cached VNode directly
+- devtools `getState()` — returns a shallow copy instead of mutable internal reference
+- Scheduler `flushDOMUpdates` — cancels pending rAF before draining queue
+
+### Added
+- Full type declarations in `veliom.d.ts` for all v0.2.x APIs (Scheduler, Plugin, KeepAlive, Transition, SSR, LIS, useVirtualList, createSuspense)
+- Global `Window.__VELIOM_DEVTOOLS__` ambient declaration
+- examples/features-demo.ts + features.html — interactive demo for v0.2.1 features
+- `vite.config.ts` — multi-page build for all example HTML files
+- ESLint linting for `examples/` directory
+
+### Changed
+- Remove dead `nodePool` from renderer.ts (unused, never populated)
+- `EMPTY_ARR` frozen via `Object.freeze()` to prevent accidental mutation
+- `TransitionProps.appear` removed (unimplemented)
+- `renderToString` — `dangerouslySetInnerHTML` sets inner content, skips children rendering
+
 ## [0.2.1] - 2026-05-27
 
 ### Added

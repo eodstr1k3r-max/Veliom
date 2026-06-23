@@ -18,7 +18,7 @@ const HeavyComponent = createComponent(() => {
 });
 
 const LazyLoadedComponent = lazy(
-  () => import('./heavy-component').then(m => ({ default: HeavyComponent })),
+  () => import('./heavy-component').then(() => ({ default: HeavyComponent })),
   {
     fallback: h('div', { className: 'loading' },
       h('div', { className: 'spinner' }),

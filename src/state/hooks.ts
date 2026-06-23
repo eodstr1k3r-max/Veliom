@@ -588,29 +588,33 @@ export function useVirtualList<T>(options: {
   items: () => T[];
   itemHeight: number;
   overscan?: number;
-  containerRef: HTMLElement | null;
+  containerRef: { current: HTMLElement | null };
 }): {
   visibleItems: () => Array<{ item: T; index: number; offsetY: number }>;
   totalHeight: () => number;
   scrollTo: (index: number) => void;
 } {
-  const container = options.containerRef;
+  const containerRef = options.containerRef;
   const [scrollTop, setScrollTop] = useState(0);
   const overscan = options.overscan ?? 5;
 
   useEffect(() => {
-    if (!container) return;
-    const onScroll = () => setScrollTop(container.scrollTop);
-    container.addEventListener('scroll', onScroll, { passive: true });
-    return () => container.removeEventListener('scroll', onScroll);
-  }, [container]);
+    const el = containerRef.current;
+    if (!el) return;
+    const onScroll = () => setScrollTop(el.scrollTop);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const container = () => containerRef.current;
 
   const totalHeight = () => options.items().length * options.itemHeight;
 
   const visibleItems = () => {
     const items = options.items();
     const st = scrollTop();
-    const ch = container?.clientHeight ?? 0;
+    const el = container();
+    const ch = el?.clientHeight ?? 0;
     const startIdx = Math.max(0, Math.floor(st / options.itemHeight) - overscan);
     const endIdx = Math.min(items.length, Math.ceil((st + ch) / options.itemHeight) + overscan);
     const result: Array<{ item: T; index: number; offsetY: number }> = [];
@@ -621,7 +625,8 @@ export function useVirtualList<T>(options: {
   };
 
   const scrollTo = (index: number) => {
-    if (container) container.scrollTop = index * options.itemHeight;
+    const el = container();
+    if (el) el.scrollTop = index * options.itemHeight;
   };
 
   return { visibleItems, totalHeight, scrollTo };

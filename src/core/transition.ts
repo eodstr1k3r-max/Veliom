@@ -1,10 +1,26 @@
 import { VNode } from './renderer';
 
+const TRANSITION_TIMEOUT = 500;
+
 export interface TransitionProps {
   show: boolean;
   name: string;
   children: VNode;
-  appear?: boolean;
+}
+
+function onTransitionEnd(el: HTMLElement, removeClasses: string[], onDone?: () => void): void {
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    el.classList.remove(...removeClasses);
+    el.removeEventListener('transitionend', finish);
+    clearTimeout(fallbackTimer);
+    onDone?.();
+  };
+  const fallbackTimer = setTimeout(finish, TRANSITION_TIMEOUT);
+  el.addEventListener('transitionend', finish);
+  el.addEventListener('transitioncancel', finish);
 }
 
 export function Transition(props: TransitionProps): VNode {
@@ -23,11 +39,7 @@ export function Transition(props: TransitionProps): VNode {
     requestAnimationFrame(() => {
       el2.classList.remove(`${baseClass}-enter-from`);
       el2.classList.add(`${baseClass}-enter-to`);
-      const onEnd = () => {
-        el2.classList.remove(`${baseClass}-enter-active`, `${baseClass}-enter-to`);
-        el2.removeEventListener('transitionend', onEnd);
-      };
-      el2.addEventListener('transitionend', onEnd);
+      onTransitionEnd(el2, [`${baseClass}-enter-active`, `${baseClass}-enter-to`]);
     });
   }
 
@@ -43,12 +55,7 @@ export function createTransitionClasses(
   requestAnimationFrame(() => {
     el.classList.remove(`${baseClass}-enter-from`);
     el.classList.add(`${baseClass}-enter-to`);
-    const onEnd = () => {
-      el.classList.remove(`${baseClass}-enter-active`, `${baseClass}-enter-to`);
-      el.removeEventListener('transitionend', onEnd);
-      onDone?.();
-    };
-    el.addEventListener('transitionend', onEnd);
+    onTransitionEnd(el, [`${baseClass}-enter-active`, `${baseClass}-enter-to`], onDone);
   });
 }
 
@@ -61,11 +68,6 @@ export function leaveTransition(
   requestAnimationFrame(() => {
     el.classList.remove(`${baseClass}-leave-from`);
     el.classList.add(`${baseClass}-leave-to`);
-    const onEnd = () => {
-      el.classList.remove(`${baseClass}-leave-active`, `${baseClass}-leave-to`);
-      el.removeEventListener('transitionend', onEnd);
-      onDone?.();
-    };
-    el.addEventListener('transitionend', onEnd);
+    onTransitionEnd(el, [`${baseClass}-leave-active`, `${baseClass}-leave-to`], onDone);
   });
 }

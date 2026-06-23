@@ -501,3 +501,73 @@ export function createAsync<T>(
   fetcher: () => Promise<T> | T,
   initial?: T
 ): AsyncState<T>;
+
+// ─── v0.2.1 Scheduler ────────────────────────────────────────
+export function scheduleDOMUpdate(fn: () => void): void;
+export function flushDOMUpdates(): void;
+
+// ─── v0.2.1 Plugin System ────────────────────────────────────
+export interface PluginHooks {
+  beforeCreate?: (vnode: VNode) => void;
+  created?: (vnode: VNode) => void;
+  beforeMount?: (vnode: VNode) => void;
+  mounted?: (vnode: VNode) => void;
+  beforeUpdate?: (oldVNode: VNode, newVNode: VNode) => void;
+  updated?: (oldVNode: VNode, newVNode: VNode) => void;
+  beforeUnmount?: (vnode: VNode) => void;
+  unmounted?: (vnode: VNode) => void;
+}
+
+export interface Plugin {
+  name: string;
+  hooks: PluginHooks;
+}
+
+export function usePlugin(plugin: Plugin): void;
+
+// ─── v0.2.1 KeepAlive ────────────────────────────────────────
+export function KeepAlive(props: { children: VNode; key?: string }): VNode;
+export function clearKeepAliveCache(key?: string): void;
+
+// ─── v0.2.1 Transition ───────────────────────────────────────
+export interface TransitionProps {
+  show: boolean;
+  name: string;
+  children: VNode;
+}
+
+export function Transition(props: TransitionProps): VNode;
+export function createTransitionClasses(el: HTMLElement, baseClass: string, onDone?: () => void): void;
+export function leaveTransition(el: HTMLElement, baseClass: string, onDone?: () => void): void;
+
+// ─── v0.2.1 SSR ──────────────────────────────────────────────
+export function renderToString(vnode: VNode): string;
+export function renderToStringWithData(vnode: VNode, data: Record<string, unknown>): string;
+
+// ─── v0.2.1 LIS utility ──────────────────────────────────────
+export function longestIncreasingSubsequence(sequence: number[]): number[];
+
+// ─── v0.2.1 useVirtualList ───────────────────────────────────
+export function useVirtualList<T>(options: {
+  items: () => T[];
+  itemHeight: number;
+  overscan?: number;
+  containerRef: { current: HTMLElement | null };
+}): {
+  visibleItems: () => Array<{ item: T; index: number; offsetY: number }>;
+  totalHeight: () => number;
+  scrollTo: (index: number) => void;
+};
+
+// ─── v0.2.1 createSuspense ──────────────────────────────────
+export function createSuspense(): { pending: () => boolean; resolve: () => void };
+
+// ─── Global ambient for DevTools ─────────────────────────────
+declare global {
+  interface Window {
+    __VELIOM_DEVTOOLS__?: {
+      getState: () => { components: unknown[]; signals: unknown[] };
+      reset: () => void;
+    };
+  }
+}

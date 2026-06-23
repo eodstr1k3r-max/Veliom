@@ -34,7 +34,7 @@ export function updateSignal(id: number, value: unknown): void {
 function setupGlobalHook(): void {
   if (typeof window !== 'undefined') {
     (window as unknown as Record<string, unknown>)['__VELIOM_DEVTOOLS__'] = {
-      getState: () => state,
+      getState: () => ({ components: [...state.components], signals: [...state.signals] }),
       reset: () => {
         state.components = [];
         state.signals = [];

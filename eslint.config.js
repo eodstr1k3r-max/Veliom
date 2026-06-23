@@ -3,8 +3,8 @@ import tsparser from '@typescript-eslint/parser';
 
 export default [
   {
-    files: ['src/**/*.ts'],
-    ignores: ['dist/**', 'examples/**', 'tests/**', 'node_modules/**'],
+    files: ['src/**/*.ts', 'examples/**/*.ts'],
+    ignores: ['dist/**', 'tests/**', 'node_modules/**'],
     languageOptions: {
       parser: tsparser,
       ecmaVersion: 2022,

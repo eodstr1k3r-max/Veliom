@@ -86,10 +86,12 @@ const VirtualListDemo = createComponent(() => {
   const allItems = Array.from({ length: 10000 }, (_, i) => `Item ${i} — ${Math.random().toString(36).slice(2, 8)}`);
   const list = createSignal(allItems);
 
-  const { visibleItems, totalHeight, scrollTo } = useVirtualList(
-    list.get(),
-    { itemHeight: 36, overscan: 5, containerRef }
-  );
+  const { visibleItems, totalHeight, scrollTo } = useVirtualList({
+    items: () => list.get(),
+    itemHeight: 36,
+    overscan: 5,
+    containerRef,
+  });
 
   return () => h('div', null,
     h('h3', null, 'Virtual List (10,000 items)'),
@@ -108,7 +110,7 @@ const VirtualListDemo = createComponent(() => {
             style: `position:absolute;top:${item.offsetY}px;height:36px;left:0;right:0;
                     padding:0 1rem;display:flex;align-items:center;
                     background:${item.index % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent'};`
-          }, `${item.index}: ${item.data}`)
+          }, `${item.index}: ${item.item}`)
         )
       )
     ),
@@ -118,17 +120,19 @@ const VirtualListDemo = createComponent(() => {
 });
 
 const DevToolsDemo = createComponent(() => {
-  const state = createSignal<any>(null);
+  const info = createSignal<string>('');
   onMount(() => {
-    const dt = (window as any).__VELIOM_DEVTOOLS__;
-    if (dt) state.set(dt.getState());
+    const dt = window.__VELIOM_DEVTOOLS__;
+    if (dt) {
+      const s = dt.getState();
+      info.set(`Components: ${s.components.length}, Signals: ${s.signals.length}`);
+    } else {
+      info.set('__VELIOM_DEVTOOLS__ not available');
+    }
   });
   return () => h('div', null,
     h('h3', null, 'DevTools Hook'),
-    state.get()
-      ? h('pre', { style: 'font-size:0.8rem;color:#00d9ff;background:rgba(0,0,0,0.3);padding:0.5rem;border-radius:4px;' },
-          JSON.stringify(state.get(), null, 2))
-      : h('p', { style: 'color:#888;' }, '__VELIOM_DEVTOOLS__ not available')
+    h('p', { style: 'color:#00d9ff;font-size:0.9rem;' }, info.get())
   );
 });
 

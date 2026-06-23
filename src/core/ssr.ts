@@ -25,12 +25,7 @@ function attrsToString(props: Record<string, unknown>): string {
   const keys = Object.keys(props);
   for (let i = 0; i < keys.length; i++) {
     const key = keys[i];
-    if (key === 'children' || key === 'key' || key === 'ref') continue;
-    if (key === 'dangerouslySetInnerHTML') {
-      const html = (props[key] as { __html: string })?.__html;
-      if (html) return `>${html}`;
-      continue;
-    }
+    if (key === 'children' || key === 'key' || key === 'ref' || key === 'dangerouslySetInnerHTML') continue;
     if (key.startsWith('on')) continue;
     const val = props[key];
     if (val === false || val === null || val === undefined) continue;
@@ -79,7 +74,10 @@ export function renderToString(vnode: VNode): string {
   }
 
   let inner = '';
-  if (vnode.children) {
+  const innerHtml = vnode.props.dangerouslySetInnerHTML as { __html: string } | undefined;
+  if (innerHtml?.__html) {
+    inner = innerHtml.__html;
+  } else if (vnode.children) {
     for (let i = 0; i < vnode.children.length; i++) {
       inner += renderToString(vnode.children[i]);
     }

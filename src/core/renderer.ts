@@ -18,18 +18,12 @@ export interface DOMNode {
 
 import { longestIncreasingSubsequence } from '../utils/lis';
 
-const nodePool: VNode[] = [];
-
-function getVNode(): VNode {
-  return nodePool.pop() || { type: '', props: {} };
-}
-
 export function h(
   type: string,
   props: Record<string, unknown> | null = {},
   ...children: (VNode | string | number | null | undefined)[]
 ): VNode {
-  const vnode = getVNode();
+  const vnode: VNode = { type: '', props: {} };
   vnode.type = type;
   vnode.props = props || {};
   vnode.key = (props?.key as string) ?? undefined;
@@ -70,10 +64,10 @@ function attachEvent(element: Element, key: string, handler: unknown): void {
 
     if (!eventMap.has(eventName)) {
       eventMap.set(eventName, new Map());
-      const container = eventContainer;
       const eventHandler = (e: Event) => {
+        if (!eventContainer) return;
         let node: Element | null = e.target as Element;
-        while (node && node !== container) {
+        while (node && node !== eventContainer) {
           const handlerMap = eventMap.get(e.type);
           if (handlerMap) {
             const elHandler = handlerMap.get(node);
@@ -85,7 +79,7 @@ function attachEvent(element: Element, key: string, handler: unknown): void {
           node = node.parentElement;
         }
       };
-      container.addEventListener(eventName, eventHandler);
+      eventContainer.addEventListener(eventName, eventHandler);
     }
 
     eventMap.get(eventName)!.set(element, listener);

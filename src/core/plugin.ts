@@ -30,7 +30,11 @@ function runHooks(hookName: keyof PluginHooks, ...args: unknown[]): void {
   for (let i = 0; i < plugins.length; i++) {
     const hook = plugins[i].hooks[hookName];
     if (hook) {
-      (hook as (...a: unknown[]) => void)(...args);
+      try {
+        (hook as (...a: unknown[]) => void)(...args);
+      } catch (err) {
+        console.warn(`Veliom plugin "${plugins[i].name}" hook "${hookName}" error:`, err);
+      }
     }
   }
 }

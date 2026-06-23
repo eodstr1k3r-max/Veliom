@@ -9,7 +9,6 @@ import {
   For,
   mergeRefs,
   createPortal,
-  createErrorBoundary,
   onMount,
   onUnmount,
   createStore,
