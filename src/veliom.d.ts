@@ -495,6 +495,7 @@ export interface AsyncState<T> {
   loading: () => boolean;
   error: () => Error | undefined;
   refetch: () => void;
+  dispose: () => void;
 }
 
 export function createAsync<T>(
@@ -560,7 +561,10 @@ export function useVirtualList<T>(options: {
 };
 
 // ─── v0.2.1 createSuspense ──────────────────────────────────
-export function createSuspense(): { pending: () => boolean; resolve: () => void };
+export function createSuspense(fallback: VNode): {
+  Suspense: (props: { children: LazyComponent }) => VNode;
+  preload: (component: LazyComponent) => void;
+};
 
 // ─── Global ambient for DevTools ─────────────────────────────
 declare global {

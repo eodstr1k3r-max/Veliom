@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - KeepAlive no longer returns opaque `{ type: 'keepAlive' }` VNode; returns the cached VNode directly
 - devtools `getState()` — returns a shallow copy instead of mutable internal reference
 - Scheduler `flushDOMUpdates` — cancels pending rAF before draining queue
+- `resource.ts` — `disposed` guard prevents signal updates after `dispose()` (+ already-disposed check)
+- `async.ts` — `disposed` guard + `dispose()` method on `AsyncState`
+- `component.ts` — `update()` no longer re-runs child effects via `runEffects` (was duplicating `renderEffects`)
+- `runEffects` in hooks.ts — dep-gated: skips effect if deps unchanged since last run
+- `renderEffect` in component.ts — signals are properly stored in `effectRef` for component re-rendering
+- `KeepAlive` internal `_key` property mismatch — reconcile `key !== _key` instead of checked-only
+- `plugin.ts` `getPlugins()` exported but missing from `veliom.ts` barrel
+- `longestIncreasingSubsequence` exported from `.d.ts` but missing from `veliom.ts` barrel
+- `veliom.d.ts` `createSuspense` type was wrong (declared `{pending,resolve}` but returns `{Suspense,preload}`)
+- `veliom.d.ts` `AsyncState` interface missing `dispose()`
 
 ### Added
 - Full type declarations in `veliom.d.ts` for all v0.2.x APIs (Scheduler, Plugin, KeepAlive, Transition, SSR, LIS, useVirtualList, createSuspense)

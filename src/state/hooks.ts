@@ -6,6 +6,7 @@ export type EffectFn = () => CleanupFn | void;
 interface Effect {
   fn: EffectFn;
   deps: unknown[];
+  lastValues?: unknown[];
   cleanup?: CleanupFn;
 }
 
@@ -74,6 +75,10 @@ export function runEffects(ctx: Context): void {
     const effect = ctx.effects[i];
     if (!effect) continue;
 
+    if (effect.deps.length > 0 && effect.lastValues && depsEqual(effect.lastValues, effect.deps)) {
+      continue;
+    }
+
     if (effect.cleanup) {
       effect.cleanup();
       effect.cleanup = undefined;
@@ -82,6 +87,10 @@ export function runEffects(ctx: Context): void {
     const cleanup = effect.fn();
     if (typeof cleanup === 'function') {
       effect.cleanup = cleanup;
+    }
+
+    if (effect.deps.length > 0) {
+      effect.lastValues = [...effect.deps];
     }
   }
 }

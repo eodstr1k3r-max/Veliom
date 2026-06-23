@@ -5,6 +5,7 @@ export interface AsyncState<T> {
   loading: () => boolean;
   error: () => Error | undefined;
   refetch: () => void;
+  dispose: () => void;
 }
 
 export function createAsync<T>(
@@ -14,26 +15,32 @@ export function createAsync<T>(
   const data = createSignal<T | undefined>(initial);
   const loading = createSignal(true);
   const error = createSignal<Error | undefined>(undefined);
+  let disposed = false;
 
   const execute = () => {
+    if (disposed) return;
     loading.set(true);
     error.set(undefined);
     try {
       const result = fetcher();
       if (result instanceof Promise) {
         result
-          .then((val) => { data.set(val); loading.set(false); })
-          .catch((err) => { error.set(err instanceof Error ? err : new Error(String(err))); loading.set(false); });
+          .then((val) => { if (!disposed) { data.set(val); loading.set(false); } })
+          .catch((err) => { if (!disposed) { error.set(err instanceof Error ? err : new Error(String(err))); loading.set(false); } });
       } else {
-        data.set(result);
-        loading.set(false);
+        if (!disposed) { data.set(result); loading.set(false); }
       }
     } catch (err) {
-      error.set(err instanceof Error ? err : new Error(String(err)));
-      loading.set(false);
+      if (!disposed) { error.set(err instanceof Error ? err : new Error(String(err))); loading.set(false); }
     }
   };
 
   execute();
-  return { data: () => data.get(), loading: () => loading.get(), error: () => error.get(), refetch: execute };
+  return {
+    data: () => data.get(),
+    loading: () => loading.get(),
+    error: () => error.get(),
+    refetch: execute,
+    dispose: () => { disposed = true; },
+  };
 }

@@ -183,3 +183,9 @@ export {
 export {
   useVirtualList,
 } from './state/hooks';
+export {
+  longestIncreasingSubsequence,
+} from './utils/lis';
+export {
+  getPlugins,
+} from './core/plugin';
