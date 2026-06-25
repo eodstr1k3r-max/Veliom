@@ -8,7 +8,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.6] - 2026-06-25
 
 ### Fixed
-- 40+ bugs across 13 source files — see full list in previous 0.2.5 entries
+- `resource.ts` — `loading` initialized to `true` (was `false`, showed stale "loaded" state before first fetch)
+- `resource.ts` — added `dispose()` method to `Resource<T>` interface
+- `async.ts` — stale promise guard (`pendingPromise` check, like resource.ts)
+- `lazy.ts` — sync-throw guard via `try/catch` around `loader()`; re-throw `errorObj` instead of raw `err`
+- `await.ts` — added reactive signal so parent re-renders when promise resolves/rejects
+- `control.ts` `For`/`Index` — guard `null`/`undefined` `each` array; skip `null` children; clone VNode before mutating `key` (was corrupting cached VNodes)
+- `renderer.ts` — `patchVNode` now clears `style.cssText` and `innerHTML` when those props are removed
+- `router.ts` `matchRoute` — strip trailing slashes from pattern/path for consistent matching
+- `router.ts` `createRouter` — escape special regex chars in `base` string
+- `router.ts` `Route` — removed unused `createMemo` leak
+- `router.ts` `navigate` — hash mode now calls `updatePath()` synchronously
+- `store.ts` `createComputed` — initial compute now uses `runner()` (establishes tracking context correctly)
+- `store.ts` `createDeepStore` — added `WeakMap` proxy cache; nested `set` now reads fresh root via `signal.get()`
+- `store.ts` `combineSignals` — added `dispose()` that unsubscribes from source signals
+- `store.ts` `createMediaQuery` — added `dispose()` that removes `change` listener
+- `lifecycle.ts` `triggerOnMount` — guard against double invocation via `_mounted` flag
+- `context.ts` `Provider.render` — uses stack instead of single value, so nested Providers restore outer value
+- `devtools.ts` — capped `components`/`signals` arrays at 1000 entries to prevent unbounded growth
+- `useEventListener` — stale handler closure fixed (use `useRef` to always call latest handler)
+- `useInterval`/`useTimeout` — stale `fn` closure fixed (use `savedFn.current`)
+- `useDebouncedValue` — `timeoutId` now stored in `useRef` (was reset per render); added cleanup on unmount
+- `useTransition` — added `pendingCount` counter for correct behavior with nested/overlapping transitions
+- `useForm` — **no longer calls hooks inside a `for` loop** (was violating Rules of Hooks); uses single `useState` for all form data
+- `useClipboard` — `setTimeout` ID stored in `useRef`; cleared on unmount; previous timeout cleared before new one
+- `useOnlineStatus` — added SSR guard (`typeof window !== 'undefined'`)
+- `useGeolocation` — added SSR guard + `unmountedRef` to prevent state updates after unmount
+- `useWindowSize` — added SSR guard with default `{ width: 1024, height: 768 }`
+- `useScrollPosition` — added SSR guard with default `{ x: 0, y: 0 }`
+- `useIdleTimer` — added SSR guard (`typeof window === 'undefined'` early return)
+- `useVirtualList` — added `containerRef.current` to useEffect deps (re-attaches scroll listener on ref change)
+- `createEffect` — returned `() => void` now tracks unsubscribes instead of being a no-op
 
 ## [0.2.5] - 2026-06-24
 
@@ -30,40 +60,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `longestIncreasingSubsequence` exported from `.d.ts` but missing from `veliom.ts` barrel
 - `veliom.d.ts` `createSuspense` type was wrong (declared `{pending,resolve}` but returns `{Suspense,preload}`)
 - `veliom.d.ts` `AsyncState` interface missing `dispose()`
-- `resource.ts` — `loading` initialized to `true` (was `false`, showed stale "loaded" state before first fetch)
-- `resource.ts` — added `dispose()` method to `Resource<T>` interface
-- `async.ts` — stale promise guard (`pendingPromise` check, like resource.ts)
-- `lazy.ts` — sync-throw guard via `try/catch` around `loader()`; re-throw `errorObj` instead of raw `err`
-- `await.ts` — added reactive signal so parent re-renders when promise resolves/rejects
-- `control.ts` `For`/`Index` — guard `null`/`undefined` `each` array; skip `null` children; clone VNode before mutating `key` (was corrupting cached VNodes)
-- `renderer.ts` — `patchVNode` now clears `style.cssText` and `innerHTML` when those props are removed
-- `router.ts` `matchRoute` — strip trailing slashes from pattern/path for consistent matching
-- `router.ts` `createRouter` — escape special regex chars in `base` string
-- `router.ts` `Route` — removed unused `createMemo` leak
-- `router.ts` `navigate` — hash mode now calls `updatePath()` synchronously
-- `store.ts` `createComputed` — initial compute now uses `runner()` (establishes tracking context correctly)
-- `store.ts` `createDeepStore` — added `WeakMap` proxy cache; nested `set` now reads fresh root via `signal.get()`
-- `store.ts` `combineSignals` — added `dispose()` that unsubscribes from source signals
-- `store.ts` `createMediaQuery` — added `dispose()` that removes `change` listener
-- `lifecycle.ts` `triggerOnMount` — guard against double invocation via `_mounted` flag
-- `context.ts` `Provider.render` — uses stack instead of single value, so nested Providers restore outer value
-- `devtools.ts` — capped `components`/`signals` arrays at 1000 entries to prevent unbounded growth
-
-### hooks.ts bugfixes
-- `useEventListener` — stale handler closure fixed (use `useRef` to always call latest handler)
-- `useInterval`/`useTimeout` — stale `fn` closure fixed (use `savedFn.current`)
-- `useDebouncedValue` — `timeoutId` now stored in `useRef` (was reset per render); added cleanup on unmount
-- `useTransition` — added `pendingCount` counter for correct behavior with nested/overlapping transitions
-- `useForm` — **no longer calls hooks inside a `for` loop** (was violating Rules of Hooks); uses single `useState` for all form data
-- `useClipboard` — `setTimeout` ID stored in `useRef`; cleared on unmount; previous timeout cleared before new one
-- `useOnlineStatus` — added SSR guard (`typeof window !== 'undefined'`)
-- `useGeolocation` — added SSR guard + `unmountedRef` to prevent state updates after unmount
-- `useWindowSize` — added SSR guard with default `{ width: 1024, height: 768 }`
-- `useScrollPosition` — added SSR guard with default `{ x: 0, y: 0 }`
-- `useIdleTimer` — added SSR guard (`typeof window === 'undefined'` early return)
-- `useVirtualList` — added `containerRef.current` to useEffect deps (re-attaches scroll listener on ref change)
-- `createEffect` — returned `() => void` now tracks unsubscribes instead of being a no-op
-
 ### Added
 - Full type declarations in `veliom.d.ts` for all v0.2.x APIs (Scheduler, Plugin, KeepAlive, Transition, SSR, LIS, useVirtualList, createSuspense)
 - Global `Window.__VELIOM_DEVTOOLS__` ambient declaration
