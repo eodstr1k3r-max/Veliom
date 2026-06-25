@@ -8,7 +8,7 @@ export interface Context<T> {
   };
 }
 
-const contextValues = new Map<symbol, unknown>();
+const contextValues = new Map<symbol, unknown[]>();
 
 export function createContext<T>(defaultValue: T): Context<T> {
   const id = Symbol('context');
@@ -18,10 +18,13 @@ export function createContext<T>(defaultValue: T): Context<T> {
     defaultValue,
     Provider: {
       render: (props: { value: T; children?: any }) => {
-        contextValues.set(id, props.value);
-        return Array.isArray(props.children)
+        const stack = contextValues.get(id) || [];
+        stack.push(props.value);
+        contextValues.set(id, stack);
+        const children = Array.isArray(props.children)
           ? { type: 'fragment', props: {}, children: props.children }
           : props.children || { type: 'empty', props: {} };
+        return children;
       },
     },
   };
@@ -32,12 +35,13 @@ export function useContext<T>(context: Context<T>): T {
   if (ctx && ctx.contextCache?.has(context.id)) {
     return ctx.contextCache.get(context.id) as T;
   }
-  if (contextValues.has(context.id)) {
-    return contextValues.get(context.id) as T;
+  const stack = contextValues.get(context.id);
+  if (stack && stack.length > 0) {
+    return stack[stack.length - 1] as T;
   }
   return context.defaultValue;
 }
 
 export function provideContext<T>(context: Context<T>, value: T): void {
-  contextValues.set(context.id, value);
+  contextValues.set(context.id, [value]);
 }

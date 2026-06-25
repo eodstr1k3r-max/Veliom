@@ -1,3 +1,4 @@
+import { createSignal } from '../state/store';
 import { VNode } from './renderer';
 
 export interface AwaitProps<T> {
@@ -12,33 +13,44 @@ type AwaitState<T> =
   | { status: 'resolved'; data: T }
   | { status: 'rejected'; error: Error };
 
-const awaitCache = new WeakMap<Promise<unknown>, AwaitState<unknown>>();
+const awaitCache = new WeakMap<Promise<unknown>, { signal: ReturnType<typeof createSignal<AwaitState<unknown>>> }>();
 
 export function Await<T>(props: AwaitProps<T>): VNode {
   const promise = typeof props.promise === 'function' ? props.promise() : props.promise;
 
-  let state = awaitCache.get(promise as Promise<unknown>) as AwaitState<T> | undefined;
+  const cached = awaitCache.get(promise as Promise<unknown>) as { signal: { get(): AwaitState<T> } } | undefined;
 
-  if (!state) {
-    state = { status: 'pending' };
-    awaitCache.set(promise as Promise<unknown>, state as AwaitState<unknown>);
+  if (!cached) {
+    const signal = createSignal<AwaitState<T>>({ status: 'pending' });
+    awaitCache.set(promise as Promise<unknown>, { signal } as any);
 
     promise.then(
       (data) => {
-        const s = awaitCache.get(promise as Promise<unknown>) as AwaitState<unknown>;
-        if (s && s.status === 'pending') {
-          awaitCache.set(promise as Promise<unknown>, { status: 'resolved', data } as AwaitState<unknown>);
+        const entry = awaitCache.get(promise as Promise<unknown>) as any;
+        if (entry) {
+          const s = entry.signal.get() as AwaitState<T>;
+          if (s.status === 'pending') {
+            entry.signal.set({ status: 'resolved', data } as AwaitState<unknown>);
+          }
         }
       },
       (err: Error) => {
-        const s = awaitCache.get(promise as Promise<unknown>) as AwaitState<unknown>;
-        if (s && s.status === 'pending') {
-          awaitCache.set(promise as Promise<unknown>, { status: 'rejected', error: err } as AwaitState<unknown>);
+        const entry = awaitCache.get(promise as Promise<unknown>) as any;
+        if (entry) {
+          const s = entry.signal.get() as AwaitState<T>;
+          if (s.status === 'pending') {
+            entry.signal.set({ status: 'rejected', error: err } as AwaitState<unknown>);
+          }
         }
       }
     );
+    return renderAwait(props, { status: 'pending' } as AwaitState<T>);
   }
 
+  return renderAwait(props, cached.signal.get());
+}
+
+function renderAwait<T>(props: AwaitProps<T>, state: AwaitState<T>): VNode {
   if (state.status === 'resolved') {
     return props.children(state.data);
   }

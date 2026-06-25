@@ -31,6 +31,8 @@ export function getLifecycle(instance: ComponentInstance): LifecycleCallbacks | 
 }
 
 export function triggerOnMount(callbacks: LifecycleCallbacks): void {
+  if ((callbacks as any)._mounted) return;
+  (callbacks as any)._mounted = true;
   if (callbacks.onMount) {
     const cleanup = callbacks.onMount();
     if (typeof cleanup === 'function') {

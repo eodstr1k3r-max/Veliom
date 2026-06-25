@@ -472,7 +472,11 @@ function patchVNode(
         (el as HTMLInputElement).value = '';
       } else if (key === 'checked' && el instanceof HTMLInputElement) {
         el.checked = false;
-      } else if (key !== 'style' && key !== 'dangerouslySetInnerHTML') {
+      } else if (key === 'style') {
+        (el as HTMLElement).style.cssText = '';
+      } else if (key === 'dangerouslySetInnerHTML') {
+        el.innerHTML = '';
+      } else {
         el.removeAttribute(attrKey);
       }
     }

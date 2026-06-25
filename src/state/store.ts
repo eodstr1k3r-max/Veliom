@@ -157,8 +157,7 @@ export function createComputed<T>(
     for (let i = 0; i < depSignals.length; i++) {
       depSignals[i].subscribe(runner);
     }
-    value = compute();
-    initialized = true;
+    runner();
   } else {
     const runner = () => {
       pushTrackingEffect(runner);
@@ -184,25 +183,31 @@ export function createDeepStore<T extends Record<string, unknown>>(initial: T): 
 } {
   const signal = createSignal(initial);
   const subs = new Set<() => void>();
+  const proxyCache = new WeakMap<object, object>();
 
-  const handler: ProxyHandler<T> = {
-    get(target: T, prop: string | symbol) {
-      const val = target[prop as keyof T];
+  const handler: ProxyHandler<Record<string, unknown>> = {
+    get(target: Record<string, unknown>, prop: string | symbol) {
+      const val = target[prop as string];
       signal.get();
       if (val && typeof val === 'object' && !Array.isArray(val)) {
-        return new Proxy(val as any, handler);
+        if (proxyCache.has(val as object)) {
+          return proxyCache.get(val as object);
+        }
+        const p = new Proxy(val as Record<string, unknown>, handler);
+        proxyCache.set(val as object, p);
+        return p;
       }
       return val;
     },
-    set(target: T, prop: string | symbol, value: unknown) {
-      target[prop as keyof T] = value as any;
-      signal.set({ ...target });
+    set(target: Record<string, unknown>, prop: string | symbol, value: unknown) {
+      target[prop as string] = value;
+      signal.set({ ...signal.get() as any });
       for (const fn of subs) fn();
       return true;
     },
   };
 
-  const proxy = new Proxy(initial, handler) as T;
+  const proxy = new Proxy(initial as Record<string, unknown>, handler) as unknown as T;
 
   return {
     state: proxy,
@@ -213,9 +218,14 @@ export function createDeepStore<T extends Record<string, unknown>>(initial: T): 
   };
 }
 
-export function combineSignals<T>(sources: Signal<unknown>[], compute: () => T): Signal<T> {
-  const signal = createSignal<T>(undefined as unknown as T);
-  const update = () => { signal.set(compute()); };
+export function combineSignals<T>(sources: Signal<unknown>[], compute: () => T): Signal<T> & { dispose: () => void } {
+  const signal = createSignal<T>(undefined as unknown as T) as Signal<T> & { dispose: () => void };
+  const unsubs: (() => void)[] = [];
+  const update = () => {
+    const val = compute();
+    signal.set(val);
+    return val;
+  };
   const runner = () => {
     pushTrackingEffect(runner);
     try {
@@ -224,16 +234,27 @@ export function combineSignals<T>(sources: Signal<unknown>[], compute: () => T):
       popTrackingEffect();
     }
   };
-  runner();
+  for (let i = 0; i < sources.length; i++) {
+    unsubs.push(sources[i].subscribe(runner));
+  }
+  update();
+  signal.dispose = () => {
+    for (let i = 0; i < unsubs.length; i++) {
+      unsubs[i]();
+    }
+  };
   return signal;
 }
 
-export function createMediaQuery(query: string): Signal<boolean> {
+export function createMediaQuery(query: string): Signal<boolean> & { dispose: () => void } {
   const mql = typeof window !== 'undefined' ? window.matchMedia(query) : null;
-  const signal = createSignal(mql?.matches ?? false);
+  const signal = createSignal(mql?.matches ?? false) as Signal<boolean> & { dispose: () => void };
   if (mql) {
     const handler = (e: MediaQueryListEvent) => signal.set(e.matches);
     mql.addEventListener('change', handler);
+    signal.dispose = () => mql.removeEventListener('change', handler);
+  } else {
+    signal.dispose = () => {};
   }
   return signal;
 }

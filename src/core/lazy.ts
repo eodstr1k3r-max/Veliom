@@ -31,7 +31,14 @@ export function lazy<P = ComponentProps>(
         return loadPromise;
       }
 
-      loadPromise = loader()
+      try {
+        loadPromise = loader();
+      } catch (err) {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        errorSignal.set(errorObj);
+        return Promise.reject(errorObj);
+      }
+      loadPromise = loadPromise
         .then((module) => {
           loadedModule = module;
           loadedSignal.set(true);
@@ -40,7 +47,7 @@ export function lazy<P = ComponentProps>(
         .catch((err) => {
           const errorObj = err instanceof Error ? err : new Error(String(err));
           errorSignal.set(errorObj);
-          throw err;
+          throw errorObj;
         });
 
       return loadPromise;

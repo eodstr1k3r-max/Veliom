@@ -54,11 +54,13 @@ export function For<T>(props: {
   children: (item: T, index: number) => VNode;
   key?: (item: T, index: number) => string | number;
 }): VNode {
+  if (!props.each) return { type: 'empty', props: {} };
   const children: VNode[] = [];
   for (let i = 0; i < props.each.length; i++) {
     const child = props.children(props.each[i], i);
-    child.key = (props.key ? String(props.key(props.each[i], i)) : String(i)) as any;
-    children.push(child);
+    if (!child) continue;
+    const key = props.key ? String(props.key(props.each[i], i)) : String(i);
+    children.push({ ...child, key });
   }
   return {
     type: 'fragment',
@@ -72,12 +74,14 @@ export function Index<T>(props: {
   children: (item: () => T, index: number) => VNode;
   key?: (item: T, index: number) => string | number;
 }): VNode {
+  if (!props.each) return { type: 'empty', props: {} };
   const children: VNode[] = [];
   for (let i = 0; i < props.each.length; i++) {
     const getter = () => props.each[i];
     const child = props.children(getter, i);
-    child.key = (props.key ? String(props.key(props.each[i], i)) : String(i)) as any;
-    children.push(child);
+    if (!child) continue;
+    const key = props.key ? String(props.key(props.each[i], i)) : String(i);
+    children.push({ ...child, key });
   }
   return {
     type: 'fragment',

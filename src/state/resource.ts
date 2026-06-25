@@ -13,13 +13,14 @@ export interface Resource<T> {
   data(): T | undefined;
   mutate(value: T): void;
   refetch(): void;
+  dispose(): void;
 }
 
 export function createResource<T>(
   fetcher: () => Promise<T> | T,
   source?: Signal<unknown>
 ): Resource<T> {
-  const loading = createSignal(false);
+  const loading = createSignal(true);
   const error = createSignal<Error | null>(null);
   const data = createSignal<T | undefined>(undefined);
   let pendingPromise: Promise<T> | null = null;
@@ -95,6 +96,9 @@ export function createResource<T>(
     },
     refetch(): void {
       load();
+    },
+    dispose(): void {
+      disposed = true;
     },
   };
 }

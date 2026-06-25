@@ -17,6 +17,8 @@ export function createAsync<T>(
   const error = createSignal<Error | undefined>(undefined);
   let disposed = false;
 
+  let pendingPromise: Promise<T> | null = null;
+
   const execute = () => {
     if (disposed) return;
     loading.set(true);
@@ -24,9 +26,10 @@ export function createAsync<T>(
     try {
       const result = fetcher();
       if (result instanceof Promise) {
+        pendingPromise = result;
         result
-          .then((val) => { if (!disposed) { data.set(val); loading.set(false); } })
-          .catch((err) => { if (!disposed) { error.set(err instanceof Error ? err : new Error(String(err))); loading.set(false); } });
+          .then((val) => { if (!disposed && pendingPromise === result) { data.set(val); loading.set(false); } })
+          .catch((err) => { if (!disposed && pendingPromise === result) { error.set(err instanceof Error ? err : new Error(String(err))); loading.set(false); } });
       } else {
         if (!disposed) { data.set(result); loading.set(false); }
       }

@@ -193,12 +193,20 @@ export function usePrevious<T>(value: T): () => T | undefined {
 
 export function useDebouncedValue<T>(value: () => T, delay: number = 300): () => T {
   const [get, set] = useState(value());
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const valueRef = useRef<() => T>(value);
+  valueRef.current = value;
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const tracker = () => {
-    const v = value();
-    if (timeoutId) clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => set(v), delay);
+    const v = valueRef.current!();
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => set(v), delay);
   };
 
   const runner = () => {
@@ -216,13 +224,19 @@ export function useDebouncedValue<T>(value: () => T, delay: number = 300): () =>
 
 export function useTransition(): [() => boolean, (fn: () => void) => void] {
   const [isPending, setPending] = useState(false);
+  let pendingCount = 0;
+
   const startTransition = (fn: () => void) => {
+    pendingCount++;
     setPending(true);
     queueMicrotask(() => {
       try {
         fn();
       } finally {
-        setPending(false);
+        pendingCount--;
+        if (pendingCount === 0) {
+          setPending(false);
+        }
       }
     });
   };
@@ -235,25 +249,35 @@ export function useEventListener<K extends keyof HTMLElementEventMap>(
   handler: (e: HTMLElementEventMap[K]) => void,
   options?: boolean | AddEventListenerOptions
 ): void {
+  const savedHandler = useRef(handler);
+  savedHandler.current = handler;
+
   useEffect(() => {
     if (!target) return;
-    target.addEventListener(event as string, handler as EventListener, options);
-    return () => target.removeEventListener(event as string, handler as EventListener, options);
+    const listener = (e: Event) => (savedHandler.current as any)(e);
+    target.addEventListener(event as string, listener, options);
+    return () => target.removeEventListener(event as string, listener, options);
   }, [target, event]);
 }
 
 export function useInterval(fn: () => void, delay: number | null): void {
+  const savedFn = useRef<() => void>(fn);
+  savedFn.current = fn;
+
   useEffect(() => {
     if (delay === null) return;
-    const id = setInterval(fn, delay);
+    const id = setInterval(() => savedFn.current?.(), delay);
     return () => clearInterval(id);
   }, [delay]);
 }
 
 export function useTimeout(fn: () => void, delay: number | null): void {
+  const savedFn = useRef<() => void>(fn);
+  savedFn.current = fn;
+
   useEffect(() => {
     if (delay === null) return;
-    const id = setTimeout(fn, delay);
+    const id = setTimeout(() => savedFn.current?.(), delay);
     return () => clearTimeout(id);
   }, [delay]);
 }
@@ -325,11 +349,20 @@ export function useClipboard(): {
   copied: () => boolean;
 } {
   const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
   const copy = async (text: string): Promise<boolean> => {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => setCopied(false), 2000);
       return true;
     } catch {
       return false;
@@ -349,6 +382,7 @@ export function useDocumentTitle(title: string): void {
 export function useOnlineStatus(): () => boolean {
   const [get, set] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const on = () => set(true);
     const off = () => set(false);
     window.addEventListener('online', on);
@@ -374,24 +408,30 @@ export function useGeolocation(options?: PositionOptions): {
   const [coords, setCoords] = useState<GeolocationCoordinates | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const unmountedRef = useRef(false);
+
   useEffect(() => {
-    if (!navigator.geolocation) {
+    unmountedRef.current = false;
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
       setError('Geolocation not supported');
       setLoading(false);
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      (pos) => { setCoords(pos.coords); setLoading(false); },
-      (err) => { setError(err.message); setLoading(false); },
+      (pos) => { if (!unmountedRef.current) { setCoords(pos.coords); setLoading(false); } },
+      (err) => { if (!unmountedRef.current) { setError(err.message); setLoading(false); } },
       options
     );
+    return () => { unmountedRef.current = true; };
   }, []);
   return { coords, error, loading };
 }
 
 export function useWindowSize(): () => { width: number; height: number } {
-  const [get, set] = useState({ width: window.innerWidth, height: window.innerHeight });
+  const initial = typeof window !== 'undefined' ? { width: window.innerWidth, height: window.innerHeight } : { width: 1024, height: 768 };
+  const [get, set] = useState(initial);
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const onResize = () => set({ width: window.innerWidth, height: window.innerHeight });
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
@@ -433,8 +473,10 @@ export function useHover(
 }
 
 export function useScrollPosition(): () => { x: number; y: number } {
-  const [get, set] = useState({ x: window.scrollX, y: window.scrollY });
+  const initial = typeof window !== 'undefined' ? { x: window.scrollX, y: window.scrollY } : { x: 0, y: 0 };
+  const [get, set] = useState(initial);
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const onScroll = () => set({ x: window.scrollX, y: window.scrollY });
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
@@ -445,6 +487,7 @@ export function useScrollPosition(): () => { x: number; y: number } {
 export function useIdleTimer(timeout: number = 60000): () => boolean {
   const [get, set] = useState(false);
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     let timer: ReturnType<typeof setTimeout>;
     const reset = () => {
       set(false);
@@ -481,29 +524,20 @@ export function useForm<T extends Record<string, unknown>>(options: {
   validate?: ValidationRules<T>;
   onSubmit?: (values: T) => void;
 }) {
-  const fields = new Map<keyof T, [() => T[keyof T], (v: T[keyof T]) => void]>();
-  const [errors, setErrors] = useState<FormErrors<T>>({});
-  const [submitted, setSubmitted] = useState(false);
-
-  const keys = Object.keys(options.initialValues) as (keyof T)[];
-  for (let i = 0; i < keys.length; i++) {
-    const key = keys[i];
-    const [get, set] = useState<T[keyof T]>(options.initialValues[key]);
-    fields.set(key, [get, set]);
-  }
+  const [formData, setFormData] = useState<{ values: T; errors: FormErrors<T>; submitted: boolean }>({
+    values: { ...options.initialValues },
+    errors: {},
+    submitted: false,
+  });
 
   const getValues = (): T => {
-    const values = {} as T;
-    for (const [key, [get]] of fields) {
-      values[key] = get();
-    }
-    return values;
+    return { ...formData().values };
   };
 
   const validateField = (key: keyof T, value: T[keyof T]): string | null => {
     const rules = options.validate?.[key];
     if (!rules) return null;
-    if (rules.required && !value) return 'Required';
+    if (rules.required && (value === undefined || value === null || value === '')) return 'Required';
     if (rules.minLength && typeof value === 'string' && (value as string).length < rules.minLength) return `Min ${rules.minLength} chars`;
     if (rules.maxLength && typeof value === 'string' && (value as string).length > rules.maxLength) return `Max ${rules.maxLength} chars`;
     if (rules.pattern && typeof value === 'string' && !rules.pattern.test(value as string)) return 'Invalid format';
@@ -512,56 +546,56 @@ export function useForm<T extends Record<string, unknown>>(options: {
   };
 
   const validateAll = (): boolean => {
-    const values = getValues();
+    const values = formData().values;
     const newErrors: FormErrors<T> = {};
     let valid = true;
-    for (const key of keys) {
-      const err = validateField(key, values[key]);
+    const keys = Object.keys(options.initialValues) as (keyof T)[];
+    for (let i = 0; i < keys.length; i++) {
+      const err = validateField(keys[i], values[keys[i]]);
       if (err) {
-        newErrors[key] = err;
+        newErrors[keys[i]] = err;
         valid = false;
       }
     }
-    setErrors(newErrors);
+    setFormData(prev => ({ ...prev, errors: newErrors }));
     return valid;
   };
 
   const handleSubmit = () => {
-    setSubmitted(true);
+    setFormData(prev => ({ ...prev, submitted: true }));
     if (validateAll()) {
       options.onSubmit?.(getValues());
     }
   };
 
   const setValue = (key: keyof T, value: T[keyof T]) => {
-    const field = fields.get(key);
-    if (field) {
-      field[1](value);
-      if (submitted()) {
+    setFormData(prev => {
+      const newValues = { ...prev.values, [key]: value };
+      let newErrors = prev.errors;
+      if (prev.submitted) {
         const err = validateField(key, value);
-        setErrors(prev => {
-          const next = { ...prev };
-          if (err) next[key] = err;
-          else delete next[key];
-          return next;
-        });
+        if (err) newErrors = { ...prev.errors, [key]: err };
+        else {
+          newErrors = { ...prev.errors };
+          delete newErrors[key];
+        }
       }
-    }
+      return { ...prev, values: newValues, errors: newErrors };
+    });
   };
 
   return {
     values: getValues,
-    errors: () => errors(),
-    submitted: () => submitted(),
+    errors: () => formData().errors,
+    submitted: () => formData().submitted,
     setValue,
     handleSubmit,
     validate: validateAll,
     field(key: keyof T) {
-      const field = fields.get(key);
       return {
-        value: field?.[0] || (() => undefined as T[keyof T]),
+        value: () => formData().values[key],
         set: (v: T[keyof T]) => setValue(key, v),
-        error: () => errors()[key],
+        error: () => formData().errors[key],
       };
     },
   };
@@ -613,7 +647,7 @@ export function useVirtualList<T>(options: {
     const onScroll = () => setScrollTop(el.scrollTop);
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
-  }, []);
+  }, [containerRef.current]);
 
   const container = () => containerRef.current;
 
@@ -647,6 +681,7 @@ export function createEffect<T>(
 ): () => void {
   if (typeof sourceOrFn === 'function' && !fn) {
     const compute = sourceOrFn as () => unknown;
+    const unsubs: (() => void)[] = [];
     const runner = () => {
       pushTrackingEffect(runner);
       try {
@@ -656,7 +691,11 @@ export function createEffect<T>(
       }
     };
     runner();
-    return () => {};
+    return () => {
+      for (let i = 0; i < unsubs.length; i++) {
+        unsubs[i]();
+      }
+    };
   }
 
   const source = sourceOrFn as Signal<unknown>;

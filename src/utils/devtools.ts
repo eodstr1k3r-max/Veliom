@@ -8,17 +8,20 @@ export interface DevToolsState {
   signals: Array<{ id: number; name: string; value: unknown }>;
 }
 
+const MAX_ENTRIES = 1000;
 const state: DevToolsState = { components: [], signals: [] };
 
 export function trackComponent(name: string, vnode?: VNode): number {
   const id = ++componentCount;
   state.components.push({ id, name, vnode });
+  if (state.components.length > MAX_ENTRIES) state.components.shift();
   return id;
 }
 
 export function trackSignal(name: string, value: unknown): number {
   const id = ++signalCount;
   state.signals.push({ id, name, value });
+  if (state.signals.length > MAX_ENTRIES) state.signals.shift();
   return id;
 }
 
