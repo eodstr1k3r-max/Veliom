@@ -21,8 +21,8 @@
 - **Minimal Core** — No bloat, just what you need
 - **API-Agnostic** — Use fetch, axios, GraphQL — your choice
 - **TypeScript Native** — Full type safety out of the box
-- **Security-Aware** — Built-in XSS protection
-- **Production Ready** — 280+ tests, strict-mode clean (v0.2.1)
+- **Security-Aware** — Built-in XSS protection (10 security fixes in v0.3.0)
+- **Production Ready** — 322 tests, strict-mode clean (v0.3.0)
 
 ---
 
@@ -45,12 +45,12 @@ const Counter = createComponent(() => {
 });
 
 const App = createComponent(() => {
-  return () => h('div', null, h(Counter));
+  return () => h('div', null, Counter({}));
 });
 
 // Mount to DOM
-import { render } from 'veliom';
-render(h(App), document.getElementById('app')!);
+import { mount } from 'veliom';
+mount(App, document.getElementById('app')!);
 ```
 
 ---
@@ -259,7 +259,8 @@ const withData = renderToStringWithData(appVNode, { user: { id: 1 } });
 
 ### 🔧 DevTools Hook
 ```typescript
-// window.__VELIOM_DEVTOOLS__ is set automatically on import
+import { enableDevTools } from 'veliom';
+enableDevTools(); // registers window.__VELIOM_DEVTOOLS__
 const devtools = (window as any).__VELIOM_DEVTOOLS__;
 console.log(devtools.getState());
 // { components: [...], signals: [...] }
@@ -415,7 +416,7 @@ npm install veliom
 ```bash
 npm install
 npm run dev       # Start dev server
-npm run test      # Run tests (280+)
+npm run test      # Run tests (322+)
 npm run typecheck # TypeScript check (strict mode)
 npm run lint      # ESLint (0 warnings)
 npm run build     # Build for production

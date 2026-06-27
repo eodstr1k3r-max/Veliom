@@ -60,12 +60,21 @@ export function For<T>(props: {
     const child = props.children(props.each[i], i);
     if (!child) continue;
     const key = props.key ? String(props.key(props.each[i], i)) : String(i);
-    children.push({ ...child, key });
+    children.push(cloneVNodeWithKey(child, key));
   }
   return {
     type: 'fragment',
     props: {},
     children,
+  };
+}
+
+function cloneVNodeWithKey(vnode: VNode, key: string | number): VNode {
+  return {
+    ...vnode,
+    key: String(key),
+    props: { ...vnode.props },
+    children: vnode.children ? vnode.children.map(c => c ? { ...c, props: { ...c.props }, children: c.children ? [...c.children] : undefined } : c) : undefined,
   };
 }
 
@@ -81,7 +90,7 @@ export function Index<T>(props: {
     const child = props.children(getter, i);
     if (!child) continue;
     const key = props.key ? String(props.key(props.each[i], i)) : String(i);
-    children.push({ ...child, key });
+    children.push(cloneVNodeWithKey(child, key));
   }
   return {
     type: 'fragment',

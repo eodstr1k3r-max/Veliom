@@ -20,9 +20,17 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run build
+      - run: npm run typecheck
+        name: TypeScript Check
 
       - run: npm test
+        name: Tests
+
+      - run: npm run lint
+        name: Lint
+
+      - run: npm run build
+        name: Build
 
       - uses: actions/upload-artifact@v4
         with:

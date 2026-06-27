@@ -370,3 +370,120 @@ describe('Null & Undefined Safety', () => {
     expect(() => render(h('div', null, ''), container)).not.toThrow();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 12. DANGEROUSLYSETINNERHTML SANITIZATION
+// ─────────────────────────────────────────────────────────────────────────────
+describe('dangerouslySetInnerHTML Sanitization', () => {
+  it('should strip script tags from innerHTML', () => {
+    const el = createElement(h('div', {
+      dangerouslySetInnerHTML: { __html: '<script>alert(1)</script><b>safe</b>' }
+    })) as HTMLElement;
+    expect(el.querySelector('script')).toBeNull();
+    expect(el.querySelector('b')?.textContent).toBe('safe');
+  });
+
+  it('should strip nested script tags', () => {
+    const el = createElement(h('div', {
+      dangerouslySetInnerHTML: { __html: '<div><script>evil()</script></div>' }
+    })) as HTMLElement;
+    expect(el.querySelector('script')).toBeNull();
+  });
+
+  it('should strip script tags with attributes', () => {
+    const el = createElement(h('div', {
+      dangerouslySetInnerHTML: { __html: '<script type="text/javascript" src="evil.js"></script><p>ok</p>' }
+    })) as HTMLElement;
+    expect(el.querySelector('script')).toBeNull();
+    expect(el.querySelector('p')?.textContent).toBe('ok');
+  });
+
+  it('should handle empty __html without crash', () => {
+    expect(() => createElement(h('div', {
+      dangerouslySetInnerHTML: { __html: '' }
+    }))).not.toThrow();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 13. ROUTER PATH VALIDATION
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Router Path Security', () => {
+  it('should reject navigation to unsafe paths (javascript:)', async () => {
+    const { createRouter } = await import('../src/core/router');
+    const router = createRouter([]);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    router.navigate('javascript:alert(1)');
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Blocked unsafe navigation path')
+    );
+    warnSpy.mockRestore();
+  });
+
+  it('should allow navigation to safe paths', async () => {
+    const { createRouter } = await import('../src/core/router');
+    const router = createRouter([]);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    router.navigate('/safe/path');
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('should allow real-world paths with special chars (@, +, -)', async () => {
+    const { createRouter } = await import('../src/core/router');
+    const router = createRouter([]);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    router.navigate('/user/@john');
+    expect(warnSpy).not.toHaveBeenCalled();
+    router.navigate('/search?q=test+123');
+    expect(warnSpy).not.toHaveBeenCalled();
+    router.navigate('/items/42/edit');
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('should reject navigation with HTML injection chars', async () => {
+    const { createRouter } = await import('../src/core/router');
+    const router = createRouter([]);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    router.navigate('/<script>');
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('should reject navigation with data: protocol', async () => {
+    const { createRouter } = await import('../src/core/router');
+    const router = createRouter([]);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    router.navigate('data:text/html,<script>');
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('should reject navigation with vbscript: protocol', async () => {
+    const { createRouter } = await import('../src/core/router');
+    const router = createRouter([]);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    router.navigate('vbscript:msgbox');
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 14. DEVTOLS PRODUCTION SAFETY
+// ─────────────────────────────────────────────────────────────────────────────
+describe('DevTools Production Safety', () => {
+  it('should not expose __VELIOM_DEVTOOLS__ by default', () => {
+    expect((window as any).__VELIOM_DEVTOOLS__).toBeUndefined();
+  });
+
+  it('should expose __VELIOM_DEVTOOLS__ after enableDevTools()', async () => {
+    const { enableDevTools, disableDevTools } = await import('../src/utils/devtools');
+    enableDevTools();
+    expect((window as any).__VELIOM_DEVTOOLS__).toBeDefined();
+    expect(typeof (window as any).__VELIOM_DEVTOOLS__.getState).toBe('function');
+    disableDevTools();
+    expect((window as any).__VELIOM_DEVTOOLS__).toBeUndefined();
+  });
+});

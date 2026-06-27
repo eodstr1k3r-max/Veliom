@@ -62,8 +62,8 @@ const KeepAliveDemo = createComponent(() => {
     ),
     Show({
       when: tab.get() === 'a',
-      children: () => h(KeepAlive, { key: 'tab-a' }, h(TabA)),
-      fallback: () => h(KeepAlive, { key: 'tab-b' }, h(TabB)),
+      children: () => KeepAlive({ key: 'tab-a', children: h(TabA) }),
+      fallback: () => KeepAlive({ key: 'tab-b', children: h(TabB) }),
     }),
   );
 });
@@ -74,10 +74,10 @@ const TransitionDemo = createComponent(() => {
     h('h3', null, 'Transition (fade)'),
     h('button', { onClick: () => show.update(v => !v) },
       show.get() ? 'Hide' : 'Show'),
-    h(Transition, { show: show.get(), name: 'fade' },
+    Transition({ show: show.get(), name: 'fade', children:
       h('div', {
         style: 'margin-top:0.5rem;padding:1rem;background:rgba(255,255,255,0.05);border-radius:8px;'
-      }, 'This content fades in/out'))
+      }, 'This content fades in/out') })
   );
 });
 

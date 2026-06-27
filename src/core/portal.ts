@@ -12,7 +12,8 @@ export interface PortalProps {
 }
 
 export function createPortal(props: PortalProps): VNode {
-  const target = props.target || portalContainer || document.body;
+  const target = props.target || portalContainer || (typeof document !== 'undefined' ? document.body : null);
+  if (!target) return { type: 'empty', props: {} };
 
   return {
     type: 'portal',

@@ -17,6 +17,8 @@ export interface DOMNode {
 }
 
 import { longestIncreasingSubsequence } from '../utils/lis';
+import { sanitizeHtml } from '../utils/sanitize';
+import { pluginRunner } from './plugin';
 
 export function h(
   type: string,
@@ -50,8 +52,17 @@ export function h(
 
 let eventContainer: Element | null = null;
 const eventMap = new Map<string, Map<Element, EventListener>>();
+const containerListeners = new Map<string, { container: Element; handler: EventListener }>();
 
 export function setEventContainer(container: Element): void {
+  if (eventContainer && eventContainer !== container) {
+    for (const [eventName, entry] of containerListeners) {
+      if (entry.container === eventContainer) {
+        eventContainer.removeEventListener(eventName, entry.handler);
+        containerListeners.delete(eventName);
+      }
+    }
+  }
   eventContainer = container;
 }
 
@@ -73,13 +84,13 @@ function attachEvent(element: Element, key: string, handler: unknown): void {
             const elHandler = handlerMap.get(node);
             if (elHandler) {
               elHandler(e);
-              return;
             }
           }
           node = node.parentElement;
         }
       };
       eventContainer.addEventListener(eventName, eventHandler);
+      containerListeners.set(eventName, { container: eventContainer, handler: eventHandler });
     }
 
     eventMap.get(eventName)!.set(element, listener);
@@ -175,13 +186,16 @@ function applyProps(element: Element, props: Record<string, unknown>): void {
     } else if (key.startsWith('on')) {
       if (typeof value === 'function') {
         attachEvent(element, key, value);
+      } else if (value != null) {
+        console.warn(`Veliom: Ignoring non-function event handler for "${key}"`);
       }
     } else if (key === 'style' && typeof value === 'object' && value !== null) {
       Object.assign((element as HTMLElement).style, value);
     } else if (key === 'dangerouslySetInnerHTML' && typeof value === 'object' && value !== null) {
       const html = (value as { __html: string }).__html;
       if (typeof html === 'string') {
-        element.innerHTML = html;
+        console.warn('Veliom: dangerouslySetInnerHTML used — ensure content is trusted');
+        element.innerHTML = sanitizeHtml(html);
       }
     } else if (key === 'value' && ('value' in element || element instanceof HTMLInputElement)) {
       (element as HTMLInputElement).value = String(value);
@@ -200,6 +214,8 @@ function applyProps(element: Element, props: Record<string, unknown>): void {
 }
 
 export function createElement(vnode: VNode, parent?: Element): Element | Text | Node[] {
+  pluginRunner.beforeCreate(vnode);
+
   if (vnode.type === 'text') {
     return document.createTextNode(String(vnode.props.value));
   }
@@ -227,19 +243,18 @@ export function createElement(vnode: VNode, parent?: Element): Element | Text | 
   }
 
   if (vnode.type === PORTAL) {
-    const target = (vnode.props.target as Element) || document.body;
-    if (vnode.children) {
-      for (let i = 0; i < vnode.children.length; i++) {
-        const child = vnode.children[i];
-        if (child && child.type !== EMPTY) {
-          const result = createElement(child, target);
-          if (Array.isArray(result)) {
-            for (let j = 0; j < result.length; j++) {
-              target.appendChild(result[j]);
-            }
-          } else if (result) {
-            target.appendChild(result);
+    const target = (vnode.props.target as Element) || (typeof document !== 'undefined' ? document.body : null);
+    if (!target || !vnode.children) return [];
+    for (let i = 0; i < vnode.children.length; i++) {
+      const child = vnode.children[i];
+      if (child && child.type !== EMPTY) {
+        const result = createElement(child, target);
+        if (Array.isArray(result)) {
+          for (let j = 0; j < result.length; j++) {
+            target.appendChild(result[j]);
           }
+        } else if (result) {
+          target.appendChild(result);
         }
       }
     }
@@ -267,10 +282,12 @@ export function createElement(vnode: VNode, parent?: Element): Element | Text | 
   }
 
   vnode.ref = element;
+  pluginRunner.created(vnode);
   return element;
 }
 
 function removeVNode(vnode: VNode): void {
+  pluginRunner.beforeUnmount(vnode);
   if (vnode.ref) {
     detachAllEvents(vnode.ref as Element);
     execRef(vnode.props.ref, null);
@@ -280,6 +297,7 @@ function removeVNode(vnode: VNode): void {
       if (vnode.children[i]) removeVNode(vnode.children[i]);
     }
   }
+  pluginRunner.unmounted(vnode);
 }
 
 const EMPTY_ARR: VNode[] = [];
@@ -298,7 +316,6 @@ function reconcile(
   parent: Element,
   oldChildren: VNode[],
   newChildren: VNode[],
-  _oldKeyMap: Map<string | number, VNode>,
   newKeyMap: Map<string | number, VNode>,
 ): void {
   const oldLen = oldChildren.length;
@@ -416,6 +433,7 @@ function patchVNode(
   _index: number
 ): void {
   if (oldVNode === newVNode) return;
+  pluginRunner.beforeUpdate(oldVNode, newVNode);
 
   const existingElement = oldVNode.ref ?? (parent.childNodes[_index] as Element | Text | undefined);
 
@@ -502,7 +520,10 @@ function patchVNode(
         Object.assign((el as HTMLElement).style, newVal);
       } else if (key === 'dangerouslySetInnerHTML' && typeof newVal === 'object' && newVal !== null) {
         const html = (newVal as { __html: string }).__html;
-        if (typeof html === 'string') el.innerHTML = html;
+        if (typeof html === 'string') {
+          console.warn('Veliom: dangerouslySetInnerHTML used — ensure content is trusted');
+          el.innerHTML = sanitizeHtml(html);
+        }
       } else if (key === 'value' && ('value' in el || el instanceof HTMLInputElement)) {
         (el as HTMLInputElement).value = String(newVal);
       } else if (key === 'checked' && el instanceof HTMLInputElement) {
@@ -527,9 +548,9 @@ function patchVNode(
     el,
     oldVNode.children || EMPTY_ARR,
     newVNode.children || EMPTY_ARR,
-    buildKeyMap(oldVNode.children || EMPTY_ARR),
     buildKeyMap(newVNode.children || EMPTY_ARR),
   );
+  pluginRunner.updated(oldVNode, newVNode);
 }
 
 function buildKeyMap(children: VNode[]): Map<string | number, VNode> {
@@ -546,6 +567,7 @@ function buildKeyMap(children: VNode[]): Map<string | number, VNode> {
 export function render(vnode: VNode, container: Element): void {
   setEventContainer(container);
   container.innerHTML = '';
+  pluginRunner.beforeMount(vnode);
   const result = createElement(vnode);
   if (Array.isArray(result)) {
     for (let i = 0; i < result.length; i++) {
@@ -554,13 +576,14 @@ export function render(vnode: VNode, container: Element): void {
   } else if (result) {
     container.appendChild(result);
   }
+  pluginRunner.mounted(vnode);
 }
 
 export function patch(container: Element, oldVNode: VNode, newVNode: VNode): void {
   if (oldVNode.type === FRAGMENT || newVNode.type === FRAGMENT) {
     const oldChildren = oldVNode.type === FRAGMENT ? (oldVNode.children || []) : [oldVNode];
     const newChildren = newVNode.type === FRAGMENT ? (newVNode.children || []) : [newVNode];
-    reconcile(container, oldChildren, newChildren, buildKeyMap(oldChildren), buildKeyMap(newChildren));
+    reconcile(container, oldChildren, newChildren, buildKeyMap(newChildren));
     return;
   }
   patchVNode(container, oldVNode, newVNode, 0);

@@ -126,8 +126,8 @@ Renders a component dynamically by tag name or component function.
 ```typescript
 import { Dynamic, h } from 'veliom';
 
-h(Dynamic, { component: 'div', props: { class: 'box' } }, 'content');
-h(Dynamic, { component: MyComponent, props: { name: 'test' } });
+Dynamic({ component: 'div', props: { class: 'box' }, children: 'content' });
+Dynamic({ component: MyComponent, props: { name: 'test' } });
 ```
 
 ### `ErrorBoundary`
@@ -137,7 +137,7 @@ Catches rendering errors and shows a fallback.
 ```typescript
 import { ErrorBoundary, h } from 'veliom';
 
-h(ErrorBoundary, {
+ErrorBoundary({
   fallback: (error) => h('div', null, `Error: ${error.message}`),
   children: () => h(MyComponent)
 });
@@ -150,7 +150,7 @@ Renders a promise with loading/error/resolved states.
 ```typescript
 import { Await, h } from 'veliom';
 
-h(Await, {
+Await({
   promise: fetchUser(),
   loading: () => h('div', null, 'Loading...'),
   error: (err) => h('div', null, err.message),
@@ -165,8 +165,8 @@ Renders children to a different DOM target.
 ```typescript
 import { Teleport, h } from 'veliom';
 
-h(Teleport, { to: '#portal-root' }, h('div', null, 'Teleported'));
-h(Teleport, { to: document.getElementById('modal')! }, h('div', null, 'Modal'));
+Teleport({ to: '#portal-root', children: h('div', null, 'Teleported') });
+Teleport({ to: document.getElementById('modal')!, children: h('div', null, 'Modal') });
 ```
 
 ### `createPortal`
@@ -258,8 +258,8 @@ Caches a component's VNode + DOM element by key. On re-mount, restores the cache
 import { KeepAlive, h } from 'veliom';
 
 // Wrapped component is cached by key
-h(KeepAlive, { key: 'tab-1' }, h(TabContent));
-h(KeepAlive, { key: 'tab-2' }, h(OtherTab));
+KeepAlive({ key: 'tab-1', children: h(TabContent) });
+KeepAlive({ key: 'tab-2', children: h(OtherTab) });
 ```
 
 ### `clearKeepAliveCache(key?)`
@@ -282,9 +282,9 @@ CSS class-based enter/leave animation component.
 ```typescript
 import { Transition, h } from 'veliom';
 
-h(Transition, { show: isVisible, name: 'fade' },
-  h('div', null, 'Animated content')
-);
+Transition({ show: isVisible, name: 'fade',
+  children: h('div', null, 'Animated content')
+});
 ```
 
 Applies CSS classes in order:
@@ -804,8 +804,8 @@ import { createContext, useContext, provideContext, h } from 'veliom';
 
 const Theme = createContext('light');
 
-// JSX Provider
-h(Theme.Provider, { value: 'dark' }, h(Consumer));
+// Provider as direct function call
+Theme.Provider({ value: 'dark', children: h(Consumer) });
 
 // Consume
 const theme = useContext(Theme); // 'dark'
@@ -1005,14 +1005,19 @@ const html = renderToStringWithData(appVNode, { user: { id: 1, name: 'Alice' } }
 
 ## DevTools
 
-### `__VELIOM_DEVTOOLS__` (global hook)
+### `enableDevTools()` / `disableDevTools()`
 
-Set automatically on `window` when veliom is imported. Enables devtools integration.
+Opt-in devtools integration. Not active by default — must be explicitly enabled.
 
 ```typescript
-import 'veliom';
+import { enableDevTools, disableDevTools, isDevToolsEnabled } from 'veliom';
+
+enableDevTools(); // registers window.__VELIOM_DEVTOOLS__
 
 const devtools = (window as any).__VELIOM_DEVTOOLS__;
 const state = devtools.getState();
 // { components: VNode[], signals: { name: string, value: any }[] }
+
+disableDevTools(); // removes window.__VELIOM_DEVTOOLS__
+isDevToolsEnabled(); // boolean
 ```

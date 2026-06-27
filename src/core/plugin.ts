@@ -26,6 +26,18 @@ export function getPlugins(): Plugin[] {
   return plugins;
 }
 
+export function removePlugin(name: string): void {
+  for (let i = plugins.length - 1; i >= 0; i--) {
+    if (plugins[i].name === name) {
+      plugins.splice(i, 1);
+    }
+  }
+}
+
+export function clearPlugins(): void {
+  plugins.length = 0;
+}
+
 function runHooks(hookName: keyof PluginHooks, ...args: unknown[]): void {
   for (let i = 0; i < plugins.length; i++) {
     const hook = plugins[i].hooks[hookName];

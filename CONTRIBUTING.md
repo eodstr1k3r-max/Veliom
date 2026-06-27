@@ -46,21 +46,40 @@ npm run dev
 
 ```
 src/
-├── core/
-│   ├── renderer.ts    # Virtual DOM & rendering
-│   ├── component.ts  # Component system
-│   ├── control.ts     # Control flow (Show, For, Fragment)
-│   ├── lazy.ts       # Lazy loading
-│   ├── suspense.ts   # Suspense component
-│   ├── portal.ts    # Portal rendering
-│   ├── refs.ts      # Ref system
-│   └── error.ts    # Error handling
-├── state/
-│   ├── store.ts    # Signals & Store
-│   ├── hooks.ts    # React-like hooks
-│   └── lifecycle.ts # Lifecycle hooks
-└── utils/
-    └── benchmark.ts # Performance tools
+├── core/                    # Core rendering engine & built-in components
+│   ├── renderer.ts          # Virtual DOM & rendering (h, render, patch, createElement)
+│   ├── component.ts         # Component system (createComponent, mount, update, unmount, memo)
+│   ├── control.ts           # Control flow (Show, For, Index, Switch, Match, Fragment)
+│   ├── await.ts             # Promise-based rendering (Await)
+│   ├── dynamic.ts           # Dynamic component rendering
+│   ├── error.ts             # Error boundaries & global error handling
+│   ├── keepAlive.ts         # Component instance caching (KeepAlive)
+│   ├── lazy.ts              # Lazy-loaded components (lazy, preload)
+│   ├── plugin.ts            # Plugin system (8 lifecycle hooks)
+│   ├── portal.ts            # Portal rendering (createPortal, setPortalContainer)
+│   ├── refs.ts              # Ref system (createRef, mergeRefs)
+│   ├── router.ts            # Client-side router (hash/history, Route, Link)
+│   ├── scheduler.ts         # RAF-batched DOM updates
+│   ├── ssr.ts               # Server-side rendering (renderToString)
+│   ├── suspense.ts          # Suspense for lazy components
+│   ├── teleport.ts          # Teleport component
+│   └── transition.ts        # CSS transition animations
+├── state/                   # Reactive state management
+│   ├── store.ts             # Signals, Store, createDeepStore, createComputed, createMemo, batch
+│   ├── hooks.ts             # All hooks (useState, useEffect, useRef, etc. + createEffect)
+│   ├── async.ts             # createAsync – general promise/sync-to-signal primitive
+│   ├── context.ts           # createContext, useContext, provideContext
+│   ├── lifecycle.ts         # onMount, onUpdate, onUnmount lifecycle hooks
+│   └── resource.ts          # createResource – reactive data fetching
+├── utils/                   # Utilities
+│   ├── benchmark.ts         # Performance benchmarking tools
+│   ├── children.ts          # Children utilities (toArray, map, forEach, only, count)
+│   ├── devtools.ts          # DevTools integration (enableDevTools/disableDevTools)
+│   ├── events.ts            # onClickOutside
+│   ├── lis.ts               # Longest Increasing Subsequence (keyed DOM reconciliation)
+│   └── sanitize.ts          # HTML sanitization (script tag stripping)
+├── veliom.ts               # Barrel exports
+└── veliom.d.ts             # Full type declarations
 ```
 
 ---

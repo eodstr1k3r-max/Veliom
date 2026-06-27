@@ -16,7 +16,14 @@ type AwaitState<T> =
 const awaitCache = new WeakMap<Promise<unknown>, { signal: ReturnType<typeof createSignal<AwaitState<unknown>>> }>();
 
 export function Await<T>(props: AwaitProps<T>): VNode {
-  const promise = typeof props.promise === 'function' ? props.promise() : props.promise;
+  let promise: Promise<T>;
+  try {
+    promise = typeof props.promise === 'function' ? props.promise() : props.promise;
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    if (props.error) return props.error(error);
+    return typeof props.loading === 'function' ? props.loading() : (props.loading || { type: 'empty', props: {} });
+  }
 
   const cached = awaitCache.get(promise as Promise<unknown>) as { signal: { get(): AwaitState<T> } } | undefined;
 

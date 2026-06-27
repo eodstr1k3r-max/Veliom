@@ -145,6 +145,11 @@ export {
   onClickOutside,
 } from './utils/events';
 export {
+  enableDevTools,
+  disableDevTools,
+  isDevToolsEnabled,
+} from './utils/devtools';
+export {
   createRouter,
   Route,
   Link,
@@ -188,4 +193,6 @@ export {
 } from './utils/lis';
 export {
   getPlugins,
+  removePlugin,
+  clearPlugins,
 } from './core/plugin';

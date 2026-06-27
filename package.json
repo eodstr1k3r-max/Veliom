@@ -1,6 +1,6 @@
 {
   "name": "veliom",
-  "version": "0.2.6",
+  "version": "0.3.0",
   "description": "Ultra-fast, minimal frontend framework with API-agnostic design",
   "type": "module",
   "main": "./dist/veliom.js",
@@ -10,7 +10,7 @@
     ".": {
       "types": "./dist/veliom.d.ts",
       "import": "./dist/veliom.js",
-      "require": "./dist/veliom.cjs.js"
+      "require": "./dist/cjs/veliom.js"
     },
     "./package.json": "./package.json"
   },
@@ -20,14 +20,14 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && tsc --project tsconfig.cjs.json && vite build",
     "build:types": "tsc --emitDeclarationOnly",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src examples",
-    "prepublishOnly": "npm run build && npm run build:types"
+    "prepublishOnly": "npm run typecheck && npm test && npm run lint && npm run build"
   },
   "keywords": [
     "frontend",

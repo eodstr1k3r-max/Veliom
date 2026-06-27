@@ -10,6 +10,7 @@ export interface LifecycleCallbacks {
 }
 
 const lifecycleRegistry = new WeakMap<ComponentInstance, LifecycleCallbacks>();
+const mountedSet = new WeakSet<LifecycleCallbacks>();
 
 export function registerLifecycle(
   instance: ComponentInstance,
@@ -31,8 +32,8 @@ export function getLifecycle(instance: ComponentInstance): LifecycleCallbacks | 
 }
 
 export function triggerOnMount(callbacks: LifecycleCallbacks): void {
-  if ((callbacks as any)._mounted) return;
-  (callbacks as any)._mounted = true;
+  if (mountedSet.has(callbacks)) return;
+  mountedSet.add(callbacks);
   if (callbacks.onMount) {
     const cleanup = callbacks.onMount();
     if (typeof cleanup === 'function') {

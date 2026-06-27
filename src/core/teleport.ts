@@ -7,10 +7,12 @@ export interface TeleportProps {
 }
 
 export function Teleport(props: TeleportProps): VNode {
+  if (!props.children) return { type: 'empty', props: {} };
+
   const target = typeof props.to === 'string'
-    ? document.querySelector(props.to) || document.body
+    ? (typeof document !== 'undefined' ? (document.querySelector(props.to) || document.body) : null)
     : props.to;
 
-  if (!props.children) return { type: 'empty', props: {} };
+  if (!target) return { type: 'empty', props: {} };
   return createPortal({ children: props.children, target });
 }

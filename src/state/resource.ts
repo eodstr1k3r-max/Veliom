@@ -25,6 +25,7 @@ export function createResource<T>(
   const data = createSignal<T | undefined>(undefined);
   let pendingPromise: Promise<T> | null = null;
   let disposed = false;
+  let unsubscribeSource: (() => void) | null = null;
 
   const load = () => {
     if (disposed) return;
@@ -68,11 +69,12 @@ export function createResource<T>(
       load();
     };
     const runner = () => {
+      if (unsubscribeSource) unsubscribeSource();
       pushTrackingEffect(runner);
       try {
         sourceTracker();
       } finally {
-        popTrackingEffect();
+        unsubscribeSource = popTrackingEffect();
       }
     };
     runner();
@@ -99,6 +101,10 @@ export function createResource<T>(
     },
     dispose(): void {
       disposed = true;
+      if (unsubscribeSource) {
+        unsubscribeSource();
+        unsubscribeSource = null;
+      }
     },
   };
 }

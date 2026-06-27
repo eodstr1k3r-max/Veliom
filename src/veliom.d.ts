@@ -156,7 +156,7 @@ export type Memo<T> = Computed<T>;
 
 export function createMemo<T>(compute: () => T): Memo<T>;
 
-export function createMediaQuery(query: string): Signal<boolean>;
+export function createMediaQuery(query: string): Signal<boolean> & { dispose: () => void };
 
 export function batch(fn: () => void): void;
 
@@ -173,6 +173,7 @@ export interface Resource<T> {
   data(): T | undefined;
   mutate(value: T): void;
   refetch(): void;
+  dispose(): void;
 }
 
 export function createResource<T>(
@@ -420,7 +421,7 @@ export function useRouter(router: Router): {
   navigate: (path: string) => void;
 };
 
-export function combineSignals<T>(sources: Signal<unknown>[], compute: () => T): Signal<T>;
+export function combineSignals<T>(sources: Signal<unknown>[], compute: () => T): Signal<T> & { dispose: () => void };
 
 export type ValidationRule<T> = {
   required?: boolean;
@@ -525,6 +526,9 @@ export interface Plugin {
 }
 
 export function usePlugin(plugin: Plugin): void;
+export function getPlugins(): Plugin[];
+export function removePlugin(name: string): void;
+export function clearPlugins(): void;
 
 // ─── v0.2.1 KeepAlive ────────────────────────────────────────
 export function KeepAlive(props: { children: VNode; key?: string }): VNode;
@@ -565,6 +569,11 @@ export function createSuspense(fallback: VNode): {
   Suspense: (props: { children: LazyComponent }) => VNode;
   preload: (component: LazyComponent) => void;
 };
+
+// ─── DevTools ────────────────────────────────────────────────
+export function enableDevTools(): void;
+export function disableDevTools(): void;
+export function isDevToolsEnabled(): boolean;
 
 // ─── Global ambient for DevTools ─────────────────────────────
 declare global {

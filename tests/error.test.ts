@@ -117,6 +117,18 @@ describe('ErrorBoundary component', () => {
     expect(result.type).toBe('div');
     expect(result.children![0].props.value).toBe('error');
   });
+
+  it('does not throw when onError itself throws', () => {
+    const throwingOnError = vi.fn(() => { throw new Error('onError crash'); });
+    const result = ErrorBoundary({
+      fallback: h('span', null, 'safe'),
+      children: () => { throw new Error('original'); },
+      onError: throwingOnError,
+    });
+    expect(throwingOnError).toHaveBeenCalled();
+    expect(result.type).toBe('span');
+    expect(result.children![0].props.value).toBe('safe');
+  });
 });
 
 describe('handleComponentError', () => {

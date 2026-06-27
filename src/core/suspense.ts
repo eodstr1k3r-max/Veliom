@@ -21,7 +21,9 @@ export function Suspense(props: SuspenseProps): VNode {
       return props.fallback || { type: 'empty', props: {} };
     }
 
-    lazyComp.load().catch(() => {});
+    lazyComp.load().catch((err) => {
+      console.warn('Veliom: Lazy component failed to load', err);
+    });
 
     return props.fallback || { type: 'empty', props: {} };
   }

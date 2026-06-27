@@ -6,15 +6,22 @@ interface CacheEntry {
 }
 
 const cache = new Map<string, CacheEntry>();
+const keyCounter = { value: 0 };
+const MAX_CACHE_SIZE = 50;
 
 export function KeepAlive(props: {
   children: VNode;
   key?: string;
 }): VNode {
-  const cacheKey = props.key ?? 'default';
+  const cacheKey = props.key ?? `__keepalive_${++keyCounter.value}`;
 
   if (cache.has(cacheKey)) {
     return cache.get(cacheKey)!.vnode;
+  }
+
+  if (cache.size >= MAX_CACHE_SIZE) {
+    const oldestKey = cache.keys().next().value;
+    if (oldestKey !== undefined) cache.delete(oldestKey);
   }
 
   const el = createElement(props.children);

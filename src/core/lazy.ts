@@ -63,7 +63,9 @@ export function lazy<P = ComponentProps>(
       const loadError = errorSignal.get();
 
       if (!isLoaded) {
-        component.load().catch(() => {});
+        component.load().catch((err) => {
+          console.warn('Veliom: Lazy component failed to load', err);
+        });
         return options.fallback || { type: 'empty', props: {} };
       }
 

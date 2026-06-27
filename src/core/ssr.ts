@@ -1,4 +1,5 @@
 import { VNode } from './renderer';
+import { sanitizeHtml } from '../utils/sanitize';
 
 const VOID_ELEMENTS = new Set([
   'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
@@ -62,11 +63,7 @@ export function renderToString(vnode: VNode): string {
     return vnode.children ? renderToString(vnode.children[0]) : '';
   }
 
-  if (typeof type === 'function') {
-    return '';
-  }
-
-  const tag = type as string;
+  const tag = type;
   const propsStr = attrsToString(vnode.props);
 
   if (VOID_ELEMENTS.has(tag)) {
@@ -76,7 +73,8 @@ export function renderToString(vnode: VNode): string {
   let inner = '';
   const innerHtml = vnode.props.dangerouslySetInnerHTML as { __html: string } | undefined;
   if (innerHtml?.__html) {
-    inner = innerHtml.__html;
+    console.warn('Veliom: dangerouslySetInnerHTML used in SSR — ensure content is trusted');
+    inner = sanitizeHtml(innerHtml.__html);
   } else if (vnode.children) {
     for (let i = 0; i < vnode.children.length; i++) {
       inner += renderToString(vnode.children[i]);

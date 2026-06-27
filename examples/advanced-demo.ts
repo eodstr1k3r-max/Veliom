@@ -7,7 +7,6 @@ import {
   Fragment,
   Show,
   For,
-  mergeRefs,
   createPortal,
   onMount,
   onUnmount,
@@ -134,7 +133,7 @@ const App = createComponent(() => {
             type: 'text',
             placeholder: 'Type a feature...',
             value: inputValue.get(),
-            ref: mergeRefs(inputRef),
+            ref: inputRef,
             onInput: (e: Event) => {
               const target = e.target as HTMLInputElement;
               inputValue.set(target.value);

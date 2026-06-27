@@ -8,15 +8,23 @@ export interface Signal<T> {
 }
 
 const trackingStack: (() => void)[] = [];
+const trackingCleanups: (() => void)[][] = [];
 let batchDepth = 0;
 const pendingEffects = new Set<() => void>();
 
 export function pushTrackingEffect(fn: () => void): void {
   trackingStack.push(fn);
+  trackingCleanups.push([]);
 }
 
-export function popTrackingEffect(): void {
+export function popTrackingEffect(): () => void {
   trackingStack.pop();
+  const cleanups = trackingCleanups.pop()!;
+  return () => {
+    for (let i = 0; i < cleanups.length; i++) {
+      cleanups[i]();
+    }
+  };
 }
 
 export function getTrackingEffect(): (() => void) | null {
@@ -48,7 +56,12 @@ export function createSignal<T>(initialValue: T): Signal<T> {
     get(): T {
       const effect = getTrackingEffect();
       if (effect) {
-        listeners.add(effect as unknown as Listener<T>);
+        const listener = effect as unknown as Listener<T>;
+        listeners.add(listener);
+        if (trackingCleanups.length > 0) {
+          const frame = trackingCleanups[trackingCleanups.length - 1];
+          frame.push(() => { listeners.delete(listener); });
+        }
       }
       return value;
     },
@@ -145,19 +158,10 @@ export function createComputed<T>(
   };
 
   if (depSignals.length > 0) {
-    const runner = () => {
-      pushTrackingEffect(runner);
-      try {
-        run();
-      } finally {
-        popTrackingEffect();
-      }
-    };
-
     for (let i = 0; i < depSignals.length; i++) {
-      depSignals[i].subscribe(runner);
+      depSignals[i].subscribe(run);
     }
-    runner();
+    run();
   } else {
     const runner = () => {
       pushTrackingEffect(runner);
@@ -219,25 +223,17 @@ export function createDeepStore<T extends Record<string, unknown>>(initial: T): 
 }
 
 export function combineSignals<T>(sources: Signal<unknown>[], compute: () => T): Signal<T> & { dispose: () => void } {
-  const signal = createSignal<T>(undefined as unknown as T) as Signal<T> & { dispose: () => void };
   const unsubs: (() => void)[] = [];
+  const initialValue = compute();
+  const signal = createSignal(initialValue) as Signal<T> & { dispose: () => void };
   const update = () => {
     const val = compute();
     signal.set(val);
     return val;
   };
-  const runner = () => {
-    pushTrackingEffect(runner);
-    try {
-      update();
-    } finally {
-      popTrackingEffect();
-    }
-  };
   for (let i = 0; i < sources.length; i++) {
-    unsubs.push(sources[i].subscribe(runner));
+    unsubs.push(sources[i].subscribe(() => update()));
   }
-  update();
   signal.dispose = () => {
     for (let i = 0; i < unsubs.length; i++) {
       unsubs[i]();
@@ -262,11 +258,15 @@ export function createMediaQuery(query: string): Signal<boolean> & { dispose: ()
 export type Memo<T> = Computed<T>;
 
 export function createMemo<T>(compute: () => T): Memo<T> {
+  let currentValue: T = undefined as unknown as T;
   const signal = createSignal<T>(undefined as unknown as T);
 
   const run = () => {
     const newValue = compute();
-    signal.set(newValue);
+    if (!Object.is(currentValue, newValue)) {
+      currentValue = newValue;
+      signal.set(newValue);
+    }
   };
 
   const tracker = () => {

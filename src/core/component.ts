@@ -58,9 +58,6 @@ export function mount<P = ComponentProps>(
   }
   render(vnode, container);
 
-  popLifecycleContext();
-  popComponentContext();
-
   const instance: ComponentInstance = {
     vnode,
     container,
@@ -72,6 +69,9 @@ export function mount<P = ComponentProps>(
 
   componentRoots.set(container, instance);
   triggerOnMount(lifecycle);
+
+  popLifecycleContext();
+  popComponentContext();
 }
 
 export function update<P = ComponentProps>(

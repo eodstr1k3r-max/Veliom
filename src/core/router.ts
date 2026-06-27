@@ -38,11 +38,18 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+const DANGEROUS_PATH_PATTERNS = /(?:javascript|data|vbscript):|<|>/i;
+
+function isSafePath(path: string): boolean {
+  return !DANGEROUS_PATH_PATTERNS.test(path) && path.length < 2048;
+}
+
 export function createRouter(routes: RouteDefinition[], options: RouterOptions = {}): Router {
   const mode = options.mode || 'hash';
   const base = options.base || '/';
 
   const getPath = (): string => {
+    if (typeof window === 'undefined') return '/';
     if (mode === 'hash') {
       return window.location.hash.slice(1) || '/';
     }
@@ -80,6 +87,10 @@ export function createRouter(routes: RouteDefinition[], options: RouterOptions =
     currentPath,
     params: currentParams,
     navigate(path: string) {
+      if (!isSafePath(path)) {
+        console.warn('Veliom: Blocked unsafe navigation path');
+        return;
+      }
       const resolved = mode === 'hash' ? '#' + path : base.replace(/\/$/, '') + path;
       if (mode === 'hash') {
         window.location.hash = path;

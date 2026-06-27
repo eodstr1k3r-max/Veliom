@@ -41,6 +41,18 @@ export function Transition(props: TransitionProps): VNode {
       el2.classList.add(`${baseClass}-enter-to`);
       onTransitionEnd(el2, [`${baseClass}-enter-active`, `${baseClass}-enter-to`]);
     });
+  } else {
+    queueMicrotask(() => {
+      const el2 = children.ref as HTMLElement;
+      if (el2) {
+        el2.classList.add(`${baseClass}-enter-from`, `${baseClass}-enter-active`);
+        requestAnimationFrame(() => {
+          el2.classList.remove(`${baseClass}-enter-from`);
+          el2.classList.add(`${baseClass}-enter-to`);
+          onTransitionEnd(el2, [`${baseClass}-enter-active`, `${baseClass}-enter-to`]);
+        });
+      }
+    });
   }
 
   return children;

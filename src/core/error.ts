@@ -80,7 +80,9 @@ export function ErrorBoundary(props: {
     result = typeof children === 'function' ? (children as () => VNode | VNode[])() : (children || { type: 'empty', props: {} });
   } catch (err) {
     const errorObj = err instanceof Error ? err : new Error(String(err));
-    onError?.(errorObj, {});
+    if (onError) {
+      try { onError(errorObj, {}); } catch {}
+    }
     return typeof fallback === 'function' ? fallback(errorObj) : fallback;
   }
   return Array.isArray(result) ? { type: 'fragment', props: {}, children: result } : result;

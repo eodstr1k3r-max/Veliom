@@ -34,8 +34,8 @@ export function getCurrentContext(): Context | undefined {
   return contextStack[contextStack.length - 1];
 }
 
-function scheduleMicrotask(fn: () => void): void {
-  queueMicrotask(fn);
+export function getContextStack(): Context[] {
+  return contextStack;
 }
 
 export function useEffect(fn: EffectFn, deps?: unknown[]): void {
@@ -56,18 +56,25 @@ export function useEffect(fn: EffectFn, deps?: unknown[]): void {
   const effect: Effect = { fn, deps: deps || [], cleanup: undefined };
   ctx.effects[idx] = effect;
 
-  const run = () => {
-    if (effect.cleanup) {
-      effect.cleanup();
-      effect.cleanup = undefined;
-    }
-    const cleanup = effect.fn();
-    if (typeof cleanup === 'function') {
-      effect.cleanup = cleanup;
-    }
+  const schedule = () => {
+    queueMicrotask(() => {
+      if (effect.cleanup) {
+        effect.cleanup();
+        effect.cleanup = undefined;
+      }
+      const cleanup = effect.fn();
+      if (typeof cleanup === 'function') {
+        effect.cleanup = cleanup;
+      }
+      effect.lastValues = effect.deps.length > 0 ? [...effect.deps] : undefined;
+    });
   };
 
-  scheduleMicrotask(run);
+  if (!existingEffect) {
+    schedule();
+  } else if (deps && !depsEqual(existingEffect.deps, deps)) {
+    schedule();
+  }
 }
 
 export function runEffects(ctx: Context): void {
@@ -195,46 +202,55 @@ export function useDebouncedValue<T>(value: () => T, delay: number = 300): () =>
   const [get, set] = useState(value());
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const valueRef = useRef<() => T>(value);
+  const disposeRef = useRef<(() => void) | null>(null);
+  const runningRef = useRef(false);
   valueRef.current = value;
 
   useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (disposeRef.current) disposeRef.current();
     };
   }, []);
 
-  const tracker = () => {
-    const v = valueRef.current!();
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => set(v), delay);
-  };
-
-  const runner = () => {
-    pushTrackingEffect(runner);
+  let runner: (() => void) | null = null;
+  runner = () => {
+    if (runner && disposeRef.current) {
+      disposeRef.current();
+      disposeRef.current = null;
+    }
+    pushTrackingEffect(runner!);
     try {
-      tracker();
+      const v = valueRef.current!();
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => set(v), delay);
     } finally {
-      popTrackingEffect();
+      disposeRef.current = popTrackingEffect();
     }
   };
-  runner();
+  if (!runningRef.current) {
+    runningRef.current = true;
+    runner();
+  }
 
   return get;
 }
 
 export function useTransition(): [() => boolean, (fn: () => void) => void] {
   const [isPending, setPending] = useState(false);
-  let pendingCount = 0;
+  const pendingCountRef = useRef(0);
 
   const startTransition = (fn: () => void) => {
-    pendingCount++;
+    const count = (pendingCountRef.current ?? 0) + 1;
+    pendingCountRef.current = count;
     setPending(true);
     queueMicrotask(() => {
       try {
         fn();
       } finally {
-        pendingCount--;
-        if (pendingCount === 0) {
+        const c = (pendingCountRef.current ?? 1) - 1;
+        pendingCountRef.current = c;
+        if (c === 0) {
           setPending(false);
         }
       }
@@ -254,7 +270,7 @@ export function useEventListener<K extends keyof HTMLElementEventMap>(
 
   useEffect(() => {
     if (!target) return;
-    const listener = (e: Event) => (savedHandler.current as any)(e);
+    const listener = (e: Event) => (savedHandler.current as (e: Event) => void)(e);
     target.addEventListener(event as string, listener, options);
     return () => target.removeEventListener(event as string, listener, options);
   }, [target, event]);
@@ -299,17 +315,22 @@ export function useMediaQuery(query: string): () => boolean {
 
 export function useLocalStorage<T>(key: string, defaultValue: T): [() => T, (value: T) => void] {
   let initial = defaultValue;
-  try {
-    const stored = localStorage.getItem(key);
-    if (stored !== null) initial = JSON.parse(stored);
-  } catch {}
+  const isStorageAvailable = typeof localStorage !== 'undefined';
+  if (isStorageAvailable) {
+    try {
+      const stored = localStorage.getItem(key);
+      if (stored !== null) initial = JSON.parse(stored);
+    } catch {}
+  }
   const [get, set] = useState<T>(initial);
 
   const setWithStorage = (value: T) => {
     set(value);
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch {}
+    if (isStorageAvailable) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch {}
+    }
   };
 
   return [get, setWithStorage];
@@ -681,20 +702,19 @@ export function createEffect<T>(
 ): () => void {
   if (typeof sourceOrFn === 'function' && !fn) {
     const compute = sourceOrFn as () => unknown;
-    const unsubs: (() => void)[] = [];
+    let dispose: (() => void) | null = null;
     const runner = () => {
+      if (dispose) dispose();
       pushTrackingEffect(runner);
       try {
         compute();
       } finally {
-        popTrackingEffect();
+        dispose = popTrackingEffect();
       }
     };
     runner();
     return () => {
-      for (let i = 0; i < unsubs.length; i++) {
-        unsubs[i]();
-      }
+      if (dispose) dispose();
     };
   }
 

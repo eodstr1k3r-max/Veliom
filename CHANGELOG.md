@@ -5,7 +5,88 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-06-27
+
+### Fixed (Critical)
+- `renderer.ts` — event delegation `return` in `elHandler()` short-circuits middleware chain (inline handlers via `addEventListener` prevent `delegatedHandler` from firing)
+- `renderer.ts` — `render()` no longer leaks event delegation listeners when re-rendering into different containers (tracks per-container listeners via `containerListeners`, removes old listeners before adding new ones)
+- `hooks.ts` `useEffect` — duplicate execution on same-dep updates within same microtask (`lastValues` tracking prevents re-run when deps unchanged)
+
+### Fixed (High)
+- `hooks.ts` `useTransition` — `pendingCount` now stored in `useRef<number>(0)` (was local var reset per render)
+- `store.ts` + `hooks.ts` `createEffect` — auto-tracking subscriptions never disposed via `dispose()` (added `trackingCleanups` stack; `popTrackingEffect()` returns cleanup)
+- `context.ts` — `provideContext` global Map leaked values across non-nested Providers (migrated to hooks-context-stack model; `useContext` walks stack for inheritance)
+- `keepAlive.ts` — default key collisions (added module-level `keyCounter` for unique default keys)
+- `component.ts` — `triggerOnMount` called after `popLifecycleContext()`/`popComponentContext()` (moved before pop)
+- `router.ts` — `window.location.pathname` crash during SSR (added `typeof window === 'undefined'` guard)
+- `transition.ts` — first mount enter animation skipped when `ref` not yet set (added `queueMicrotask` fallback)
+
+### Fixed (Medium)
+- `scheduler.ts` — `requestAnimationFrame` SSR crash + re-entrant calls (extracted `scheduleFrame()`/`flushQueue()`; added `cancelAnimationFrame` guard)
+- `resource.ts` — source subscription cleanup ignored on refetch (captured `popTrackingEffect()` cleanup in `unsubscribeSource`)
+- `await.ts` — promise factory sync errors become unhandled rejections (wrapped in try/catch; returns error VNode)
+- `store.ts` `createComputed` — redundant auto-tracking when explicit deps provided (removed `pushTrackingEffect`/`popTrackingEffect` from deps branch)
+- `portal.ts` — `document.body` crash during SSR
+
+### Fixed (Low)
+- `teleport.ts` — `document.querySelector` crash during SSR
+- `renderer.ts` — PORTAL path `document.body` crash during SSR
+- `renderer.ts` — Plugin system hooks were defined but never called (integrated at `createElement`, `render`, `patchVNode`, `removeVNode`)
+- `renderer.ts` — removed dead `_oldKeyMap` parameter from `reconcile()` (was computed by all callers but never used)
+- `hooks.ts` `useDebouncedValue` — auto-tracking subscription leak (captured `popTrackingEffect()` cleanup; wired to `useEffect` unmount)
+- `hooks.ts` `useLocalStorage` — `localStorage` crash during SSR
+- `control.ts` — `For`/`Index` VNode cloning now deep-clones `children` and `props` instead of sharing references
+- `store.ts` `combineSignals` — removed `undefined as unknown as T` cast; computes initial value first
+- `store.ts` `createComputed` — removed unnecessary `runner` wrapper in deps branch (subscribes `run` directly)
+- `scheduler.ts` — `flushDOMUpdates` re-schedules frame if callbacks were added during flush (prevents orphaned callbacks)
+- `ssr.ts` — removed dead `typeof type === 'function'` check (VNode.type is always string)
+- `plugin.ts` — added `removePlugin(name)` and `clearPlugins()` APIs
+
+### Fixed (Examples)
+- `examples/features-demo.ts` — `h(KeepAlive, ...)` / `h(Transition, ...)` crashes renderer (`document.createElement(function)`)
+- `examples/lazy-demo.ts` — `import('./heavy-component')` resolves to non-existent file
+- `examples/advanced-demo.ts` — unused `mergeRefs` import; `mergeRefs(inputRef)` usage
+
+### Changed
+- `renderer.ts` — Plugin hooks now fire at all 4 lifecycle points (create, mount, update, unmount)
+- `docs/API.md` — corrected all `h(Func, ...)` examples to direct function calls for KeepAlive, Transition, Teleport, Dynamic, Await, ErrorBoundary, Theme.Provider
+- `package.json` — `prepublishOnly` now runs typecheck → test → lint → build (was calling tsc twice)
+- `package.json` — CJS build added via `tsconfig.cjs.json`; `exports.require` points to `./dist/cjs/veliom.js`
+- `eslint.config.js` — now includes `tests/**/*.ts` in lint scope
+- `lifecycle.ts` — replaced `(callbacks as any)._mounted` hack with proper `WeakSet<LifecycleCallbacks>`
+- `store.ts` `combineSignals` — removed `undefined as unknown as T` type cast; computes initial value before signal creation
+- `store.ts` `createComputed` — removed unnecessary `runner` wrapper in deps branch (subscribes `run` directly)
+- `scheduler.ts` — `flushDOMUpdates` re-schedules frame if callbacks added during flush (prevents orphaned callbacks)
+- `control.ts` — `For`/`Index` VNode cloning now deep-clones children and props via `cloneVNodeWithKey()`
+- `hooks.ts` `useEventListener` — replaced `as any` cast with typed `as (e: Event) => void`
+- `README.md` — fixed version, corrected `h(Counter)` → `Counter({})` + `mount()`
+- Removed empty `src/components/` directory
+
+### Infrastructure
+- `.github/workflows/ci.yml` — added `npm run lint` step
+- `.github/workflows/release.yml` — fixed ordering: typecheck → test → lint → build
+- `CONTRIBUTING.md` — updated project structure to match actual codebase
+
+### Security (10 fixes)
+- **Critical** — SSR `{} as Element` casts removed in `renderer.ts`, `portal.ts`, `teleport.ts` (CWE-476). Graceful empty VNode fallback instead of crash.
+- **Critical** — `dangerouslySetInnerHTML` now strips `<script>` tags via shared `sanitizeHtml()` utility (CWE-79). `console.warn()` on each use.
+- **Critical** — DevTools no longer auto-register on import. Replaced with `enableDevTools()`/`disableDevTools()` (CWE-200). All tracking functions are no-ops until enabled.
+- **High** — KeepAlive cache bounded to 50 entries with LRU eviction (CWE-770).
+- **High** — `useDebouncedValue` re-entrancy guard prevents recursive tracking corruption (CWE-674).
+- **High** — ErrorBoundary `onError` wrapped in try/catch (CWE-248).
+- **Medium** — Lazy component load failures now logged via `console.warn` instead of silent `.catch(() => {})` (CWE-778).
+- **Medium** — Router navigation path validated against dangerous protocols (`javascript:`, `data:`, `vbscript:`) and HTML injection chars (CWE-22).
+- **Medium** — Non-function event handler props (e.g. string `onClick`) now emit `console.warn` (CWE-754).
+- **Medium** — `createMemo` now uses `Object.is` change detection to avoid redundant signal updates.
+
+### Shared Utilities
+- `src/utils/sanitize.ts` — extracted shared `sanitizeHtml()` function used by both `renderer.ts` and `ssr.ts`
+- `CONTRIBUTING.md` — updated project structure to match actual codebase
+
 ## [0.2.6] - 2026-06-25
+
+### Added
+- `AUDIT_REPORT.md` — comprehensive 19-bug audit with security, CI/CD, metrics, and migration guide
 
 ### Fixed
 - `resource.ts` — `loading` initialized to `true` (was `false`, showed stale "loaded" state before first fetch)
@@ -151,7 +232,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Infrastructure
 - ESLint installed + configured (flat config `eslint.config.js`), 0 warnings
 - `vitest.config.ts` — separate test config for correct test discovery
-- 19 test files, 280 tests total
+- 21 test files, 322 tests total
 - TypeScript strict-mode clean across all source files
 
 ---
