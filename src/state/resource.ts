@@ -1,4 +1,5 @@
-import { createSignal, Signal, pushTrackingEffect, popTrackingEffect } from './store';
+import { Signal, pushTrackingEffect, popTrackingEffect } from './store';
+import { createFetcher } from './async';
 
 export interface ResourceState<T> {
   loading: boolean;
@@ -20,61 +21,20 @@ export function createResource<T>(
   fetcher: () => Promise<T> | T,
   source?: Signal<unknown>
 ): Resource<T> {
-  const loading = createSignal(true);
-  const error = createSignal<Error | null>(null);
-  const data = createSignal<T | undefined>(undefined);
-  let pendingPromise: Promise<T> | null = null;
-  let disposed = false;
-  let unsubscribeSource: (() => void) | null = null;
+  const f = createFetcher(fetcher);
+  let unsubSource: (() => void) | null = null;
 
-  const load = () => {
-    if (disposed) return;
-    loading.set(true);
-    error.set(null);
-    try {
-      const result = fetcher();
-      if (result instanceof Promise) {
-        pendingPromise = result;
-        result.then(
-          (val) => {
-            if (disposed) return;
-            if (pendingPromise === result) {
-              data.set(val);
-              loading.set(false);
-            }
-          },
-          (err) => {
-            if (disposed) return;
-            if (pendingPromise === result) {
-              error.set(err instanceof Error ? err : new Error(String(err)));
-              loading.set(false);
-            }
-          }
-        );
-      } else {
-        data.set(result);
-        loading.set(false);
-      }
-    } catch (err) {
-      if (!disposed) {
-        error.set(err instanceof Error ? err : new Error(String(err)));
-        loading.set(false);
-      }
-    }
-  };
+  const load = f.execute;
 
   if (source) {
-    const sourceTracker = () => {
-      source.get();
-      load();
-    };
     const runner = () => {
-      if (unsubscribeSource) unsubscribeSource();
+      if (unsubSource) unsubSource();
       pushTrackingEffect(runner);
       try {
-        sourceTracker();
+        source.get();
+        load();
       } finally {
-        unsubscribeSource = popTrackingEffect();
+        unsubSource = popTrackingEffect();
       }
     };
     runner();
@@ -85,25 +45,23 @@ export function createResource<T>(
   return {
     get(): ResourceState<T> {
       return {
-        loading: loading.get(),
-        error: error.get(),
-        data: data.get(),
+        loading: f.loading.get(),
+        error: f.error.get() ?? null,
+        data: f.data.get(),
       };
     },
-    loading: () => loading.get(),
-    error: () => error.get(),
-    data: () => data.get(),
+    loading: () => f.loading.get(),
+    error: () => f.error.get() ?? null,
+    data: () => f.data.get(),
     mutate(value: T): void {
-      data.set(value);
+      f.data.set(value);
     },
-    refetch(): void {
-      load();
-    },
+    refetch: load,
     dispose(): void {
-      disposed = true;
-      if (unsubscribeSource) {
-        unsubscribeSource();
-        unsubscribeSource = null;
+      f.dispose();
+      if (unsubSource) {
+        unsubSource();
+        unsubSource = null;
       }
     },
   };

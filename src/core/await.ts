@@ -1,4 +1,4 @@
-import { createSignal } from '../state/store';
+import { createSignal, Signal } from '../state/store';
 import { VNode } from './renderer';
 
 export interface AwaitProps<T> {
@@ -13,7 +13,11 @@ type AwaitState<T> =
   | { status: 'resolved'; data: T }
   | { status: 'rejected'; error: Error };
 
-const awaitCache = new WeakMap<Promise<unknown>, { signal: ReturnType<typeof createSignal<AwaitState<unknown>>> }>();
+interface CacheEntry<T> {
+  signal: Signal<AwaitState<T>>;
+}
+
+const awaitCache = new WeakMap<Promise<unknown>, CacheEntry<unknown>>();
 
 export function Await<T>(props: AwaitProps<T>): VNode {
   let promise: Promise<T>;
@@ -25,33 +29,33 @@ export function Await<T>(props: AwaitProps<T>): VNode {
     return typeof props.loading === 'function' ? props.loading() : (props.loading || { type: 'empty', props: {} });
   }
 
-  const cached = awaitCache.get(promise as Promise<unknown>) as { signal: { get(): AwaitState<T> } } | undefined;
+  const cached = awaitCache.get(promise) as CacheEntry<T> | undefined;
 
   if (!cached) {
     const signal = createSignal<AwaitState<T>>({ status: 'pending' });
-    awaitCache.set(promise as Promise<unknown>, { signal } as any);
+    awaitCache.set(promise, { signal } as CacheEntry<unknown>);
 
     promise.then(
       (data) => {
-        const entry = awaitCache.get(promise as Promise<unknown>) as any;
+        const entry = awaitCache.get(promise) as CacheEntry<T>;
         if (entry) {
-          const s = entry.signal.get() as AwaitState<T>;
+          const s = entry.signal.get();
           if (s.status === 'pending') {
-            entry.signal.set({ status: 'resolved', data } as AwaitState<unknown>);
+            entry.signal.set({ status: 'resolved', data } as AwaitState<T>);
           }
         }
       },
       (err: Error) => {
-        const entry = awaitCache.get(promise as Promise<unknown>) as any;
+        const entry = awaitCache.get(promise) as CacheEntry<T>;
         if (entry) {
-          const s = entry.signal.get() as AwaitState<T>;
+          const s = entry.signal.get();
           if (s.status === 'pending') {
-            entry.signal.set({ status: 'rejected', error: err } as AwaitState<unknown>);
+            entry.signal.set({ status: 'rejected', error: err } as AwaitState<T>);
           }
         }
       }
     );
-    return renderAwait(props, { status: 'pending' } as AwaitState<T>);
+    return renderAwait(props, { status: 'pending' });
   }
 
   return renderAwait(props, cached.signal.get());

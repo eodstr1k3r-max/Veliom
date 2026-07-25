@@ -213,13 +213,12 @@ export function useDebouncedValue<T>(value: () => T, delay: number = 300): () =>
     };
   }, []);
 
-  let runner: (() => void) | null = null;
-  runner = () => {
-    if (runner && disposeRef.current) {
+  function trackSource(): void {
+    if (disposeRef.current) {
       disposeRef.current();
       disposeRef.current = null;
     }
-    pushTrackingEffect(runner!);
+    pushTrackingEffect(trackSource);
     try {
       const v = valueRef.current!();
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -227,10 +226,11 @@ export function useDebouncedValue<T>(value: () => T, delay: number = 300): () =>
     } finally {
       disposeRef.current = popTrackingEffect();
     }
-  };
+  }
+
   if (!runningRef.current) {
     runningRef.current = true;
-    runner();
+    trackSource();
   }
 
   return get;

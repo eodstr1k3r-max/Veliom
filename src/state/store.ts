@@ -258,8 +258,8 @@ export function createMediaQuery(query: string): Signal<boolean> & { dispose: ()
 export type Memo<T> = Computed<T>;
 
 export function createMemo<T>(compute: () => T): Memo<T> {
-  let currentValue: T = undefined as unknown as T;
-  const signal = createSignal<T>(undefined as unknown as T);
+  let currentValue!: T;
+  const signal = createSignal(currentValue);
 
   const run = () => {
     const newValue = compute();

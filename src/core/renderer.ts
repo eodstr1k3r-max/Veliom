@@ -30,20 +30,17 @@ export function h(
   vnode.props = props || {};
   vnode.key = (props?.key as string) ?? undefined;
 
-  const filteredChildren = children.filter(
-    (c) => c !== null && c !== undefined && c !== ''
-  );
-
-  if (filteredChildren.length > 0) {
-    const flatChildren: VNode[] = [];
-    for (let i = 0; i < filteredChildren.length; i++) {
-      const child = filteredChildren[i];
-      if (typeof child === 'string' || typeof child === 'number') {
-        flatChildren.push({ type: 'text', props: { value: child } });
-      } else if (typeof child === 'object' && child !== null) {
-        flatChildren.push(child);
-      }
+  const flatChildren: VNode[] = [];
+  for (let i = 0; i < children.length; i++) {
+    const c = children[i];
+    if (c === null || c === undefined || c === '') continue;
+    if (typeof c === 'string' || typeof c === 'number') {
+      flatChildren.push({ type: 'text', props: { value: c } });
+    } else if (typeof c === 'object' && c !== null) {
+      flatChildren.push(c);
     }
+  }
+  if (flatChildren.length > 0) {
     vnode.children = flatChildren;
   }
 
@@ -59,9 +56,10 @@ export function setEventContainer(container: Element): void {
     for (const [eventName, entry] of containerListeners) {
       if (entry.container === eventContainer) {
         eventContainer.removeEventListener(eventName, entry.handler);
-        containerListeners.delete(eventName);
       }
     }
+    containerListeners.clear();
+    eventMap.clear();
   }
   eventContainer = container;
 }
@@ -97,6 +95,14 @@ function attachEvent(element: Element, key: string, handler: unknown): void {
   }
 }
 
+function removeContainerListener(eventName: string): void {
+  const entry = containerListeners.get(eventName);
+  if (entry && entry.container === eventContainer) {
+    eventContainer!.removeEventListener(eventName, entry.handler);
+    containerListeners.delete(eventName);
+  }
+}
+
 function detachEvent(element: Element, key: string): void {
   if (key.startsWith('on')) {
     const eventName = key.slice(2).toLowerCase();
@@ -105,6 +111,7 @@ function detachEvent(element: Element, key: string): void {
       handlerMap.delete(element);
       if (handlerMap.size === 0 && eventContainer) {
         eventMap.delete(eventName);
+        removeContainerListener(eventName);
       }
     }
   }
@@ -115,6 +122,7 @@ function detachAllEvents(element: Element): void {
     handlerMap.delete(element);
     if (handlerMap.size === 0) {
       eventMap.delete(eventName);
+      removeContainerListener(eventName);
     }
   }
 }

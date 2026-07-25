@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5] - 2026-07-25
+
+### Fixed (Critical)
+- `renderer.ts` — event delegation memory leak: `detachEvent`/`detachAllEvents` now remove container-level event listeners when the last element handler is removed (CWE-770). `setEventContainer` clears `eventMap` on container switch to prevent stale DOM element references.
+- `ssr.ts` — XSS in `renderToStringWithData`: serialized JSON now escapes `</script>` (CWE-79) and `<!--` sequences embedded in string values.
+
+### Fixed (High)
+- `scheduler.ts` — synchronous RAF-fallback path now re-checks `pendingCallbacks` after flush (prevents orphaned callbacks when callbacks add callbacks synchronously, CWE-674).
+
+### Changed
+- `store.ts` `createDeepStore` — replaced full-state object spread (`{ ...signal.get() }`) with a lightweight version-counter signal (`O(n)` → `O(1)` per mutation).
+- `state/async.ts` + `state/resource.ts` — extracted shared fetch-logic into `createFetcher()`; `createResource` builds on it instead of duplicating 75 lines.
+- `store.ts` `createMemo` — removed `undefined as unknown as T` cast in favor of definite assignment assertion (`currentValue!: T`).
+- `hooks.ts` `useDebouncedValue` — replaced self-referencing `let`–`runner` pattern with named `trackSource()` function.
+- `core/scheduler.ts` — added post-flush re-check of `pendingCallbacks` in sync path (mirrors `flushDOMUpdates` guard).
+
+### Shared Utilities
+- `state/async.ts` — exported `createFetcher()` as a shared primitive for resource and async state management.
+
+### Security
+- `core/renderer.ts` — `removeContainerListener()` helper ensures container-level event listeners are removed when the last element handler is detached (completes the event delegation cleanup lifecycle).
+
+### Infrastructure
+- `package.json` — added `"sideEffects": false` for tree-shaking optimization.
+
 ## [0.3.0] - 2026-06-27
 
 ### Fixed (Critical)

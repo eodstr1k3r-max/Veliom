@@ -12,6 +12,9 @@ function scheduleFrame(): void {
       queue[i]();
     }
     flushing = false;
+    if (pendingCallbacks.length > 0) {
+      scheduleFrame();
+    }
     return;
   }
   rafId = requestAnimationFrame(flushQueue);

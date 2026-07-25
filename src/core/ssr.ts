@@ -89,6 +89,8 @@ export function renderToStringWithData(
   data: Record<string, unknown>
 ): string {
   const html = renderToString(vnode);
-  const serialized = escapeHtml(JSON.stringify(data));
+  const serialized = JSON.stringify(data)
+    .replace(/<\/script>/gi, '<\\/script>')
+    .replace(/<!--/g, '<\\!--');
   return `${html}<script>window.__INITIAL_DATA__=${serialized};</script>`;
 }

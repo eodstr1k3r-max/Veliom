@@ -8,15 +8,20 @@ export interface AsyncState<T> {
   dispose: () => void;
 }
 
-export function createAsync<T>(
+export function createFetcher<T>(
   fetcher: () => Promise<T> | T,
   initial?: T
-): AsyncState<T> {
+): {
+  data: ReturnType<typeof createSignal<T | undefined>>;
+  loading: ReturnType<typeof createSignal<boolean>>;
+  error: ReturnType<typeof createSignal<Error | undefined>>;
+  dispose: () => void;
+  execute: () => void;
+} {
   const data = createSignal<T | undefined>(initial);
   const loading = createSignal(true);
   const error = createSignal<Error | undefined>(undefined);
   let disposed = false;
-
   let pendingPromise: Promise<T> | null = null;
 
   const execute = () => {
@@ -38,12 +43,26 @@ export function createAsync<T>(
     }
   };
 
-  execute();
   return {
-    data: () => data.get(),
-    loading: () => loading.get(),
-    error: () => error.get(),
-    refetch: execute,
+    data, loading, error,
     dispose: () => { disposed = true; },
+    execute,
+  };
+}
+
+export function createAsync<T>(
+  fetcher: () => Promise<T> | T,
+  initial?: T
+): AsyncState<T> {
+  const f = createFetcher(fetcher, initial);
+
+  f.execute();
+
+  return {
+    data: () => f.data.get(),
+    loading: () => f.loading.get(),
+    error: () => f.error.get(),
+    refetch: f.execute,
+    dispose: f.dispose,
   };
 }

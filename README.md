@@ -21,8 +21,8 @@
 - **Minimal Core** — No bloat, just what you need
 - **API-Agnostic** — Use fetch, axios, GraphQL — your choice
 - **TypeScript Native** — Full type safety out of the box
-- **Security-Aware** — Built-in XSS protection (10 security fixes in v0.3.0)
-- **Production Ready** — 322 tests, strict-mode clean (v0.3.0)
+- **Security-Aware** — Built-in XSS protection (10 security fixes in v0.3.5)
+- **Production Ready** — 322 tests, strict-mode clean (v0.3.5)
 
 ---
 
