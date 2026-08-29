@@ -8,6 +8,7 @@ const VOID_ELEMENTS = new Set([
 
 const ATTR_SSR: Record<string, string> = {
   className: 'class',
+  classList: 'class',
   htmlFor: 'for',
   readOnly: 'readonly',
 };
@@ -19,6 +20,30 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#39;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+function serializeValue(key: string, val: unknown): string {
+  if (key === 'style' && val && typeof val === 'object') {
+    const styleObj = val as Record<string, unknown>;
+    let out = '';
+    for (const styleKey of Object.keys(styleObj)) {
+      const styleValue = styleObj[styleKey];
+      if (styleValue === null || styleValue === undefined || styleValue === false) continue;
+      const cssKey = styleKey.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
+      out += `${cssKey}:${String(styleValue)};`;
+    }
+    return out;
+  }
+  if ((key === 'className' || key === 'class' || key === 'classList') && Array.isArray(val)) {
+    return val.filter(Boolean).join(' ');
+  }
+  if ((key === 'className' || key === 'class' || key === 'classList') && val && typeof val === 'object') {
+    return Object.entries(val as Record<string, unknown>)
+      .filter(([, v]) => v)
+      .map(([k]) => k)
+      .join(' ');
+  }
+  return String(val);
 }
 
 function attrsToString(props: Record<string, unknown>): string {
@@ -34,7 +59,7 @@ function attrsToString(props: Record<string, unknown>): string {
     if (val === true) {
       out += ` ${attrName}`;
     } else {
-      out += ` ${attrName}="${escapeHtml(String(val))}"`;
+      out += ` ${attrName}="${escapeHtml(serializeValue(key, val))}"`;
     }
   }
   return out;
@@ -60,7 +85,13 @@ export function renderToString(vnode: VNode): string {
   if (type === 'empty') return '';
 
   if (type === 'portal') {
-    return vnode.children ? renderToString(vnode.children[0]) : '';
+    let out = '';
+    if (vnode.children) {
+      for (let i = 0; i < vnode.children.length; i++) {
+        out += renderToString(vnode.children[i]);
+      }
+    }
+    return out;
   }
 
   const tag = type;

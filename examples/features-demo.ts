@@ -10,6 +10,7 @@ import {
   useVirtualList,
   createRef,
   onMount,
+  enableDevTools,
 } from '../src/veliom';
 
 const LOG_PREFIX = '🔌 Plugin';
@@ -62,8 +63,8 @@ const KeepAliveDemo = createComponent(() => {
     ),
     Show({
       when: tab.get() === 'a',
-      children: () => KeepAlive({ key: 'tab-a', children: h(TabA) }),
-      fallback: () => KeepAlive({ key: 'tab-b', children: h(TabB) }),
+      children: () => KeepAlive({ key: 'tab-a', children: TabA({}) }),
+      fallback: () => KeepAlive({ key: 'tab-b', children: TabB({}) }),
     }),
   );
 });
@@ -138,16 +139,19 @@ const DevToolsDemo = createComponent(() => {
 
 const App = createComponent(() => {
   return () => h('div', { style: 'font-family:-apple-system,sans-serif;max-width:600px;margin:2rem auto;padding:2rem;color:#eaeaea;' },
-    h('h1', { style: 'color:#00d9ff;' }, 'Veliom v0.2.1 Features'),
+    h('h1', { style: 'color:#00d9ff;' }, 'Veliom v0.3.6 Features'),
     h('p', { style: 'color:#888;margin-bottom:2rem;' },
       'Plugin System · KeepAlive · Transition · useVirtualList · DevTools'),
 
-    h('section', { style: 'margin-bottom:2rem;' }, h(KeepAliveDemo)),
-    h('section', { style: 'margin-bottom:2rem;' }, h(TransitionDemo)),
-    h('section', { style: 'margin-bottom:2rem;' }, h(VirtualListDemo)),
-    h('section', { style: 'margin-bottom:2rem;' }, h(DevToolsDemo)),
+    h('section', { style: 'margin-bottom:2rem;' }, KeepAliveDemo({})),
+    h('section', { style: 'margin-bottom:2rem;' }, TransitionDemo({})),
+    h('section', { style: 'margin-bottom:2rem;' }, VirtualListDemo({})),
+    h('section', { style: 'margin-bottom:2rem;' }, DevToolsDemo({})),
   );
 });
+
+// DevTools sind seit v0.3.0 opt-in — erst aktivieren, dann mounten.
+enableDevTools();
 
 const container = document.getElementById('app');
 if (container) {

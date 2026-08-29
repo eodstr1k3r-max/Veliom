@@ -52,6 +52,25 @@ export function createSignal<T>(initialValue: T): Signal<T> {
   const listeners = new Set<Listener<T>>();
   const notifyingListeners = new WeakSet<Listener<T>>();
 
+  const set = (newValue: T): void => {
+    if (Object.is(value, newValue)) return;
+    value = newValue;
+    if (batchDepth > 0) {
+      for (const listener of listeners) {
+        pendingEffects.add(listener as unknown as () => void);
+      }
+    } else {
+      const currentListeners = [...listeners];
+      for (let i = 0; i < currentListeners.length; i++) {
+        const listener = currentListeners[i];
+        if (notifyingListeners.has(listener)) continue;
+        notifyingListeners.add(listener);
+        listener(value);
+        notifyingListeners.delete(listener);
+      }
+    }
+  };
+
   return {
     get(): T {
       const effect = getTrackingEffect();
@@ -65,26 +84,9 @@ export function createSignal<T>(initialValue: T): Signal<T> {
       }
       return value;
     },
-    set(newValue: T): void {
-      if (Object.is(value, newValue)) return;
-      value = newValue;
-      if (batchDepth > 0) {
-        for (const listener of listeners) {
-          pendingEffects.add(listener as unknown as () => void);
-        }
-      } else {
-        const currentListeners = [...listeners];
-        for (let i = 0; i < currentListeners.length; i++) {
-          const listener = currentListeners[i];
-          if (notifyingListeners.has(listener)) continue;
-          notifyingListeners.add(listener);
-          listener(value);
-          notifyingListeners.delete(listener);
-        }
-      }
-    },
+    set,
     update(fn: (value: T) => T): void {
-      this.set(fn(value));
+      set(fn(value));
     },
     subscribe(listener: Listener<T>): () => void {
       listeners.add(listener);
@@ -185,14 +187,18 @@ export function createDeepStore<T extends Record<string, unknown>>(initial: T): 
   state: T;
   subscribe: (fn: () => void) => () => void;
 } {
-  const signal = createSignal(initial);
+  // O(1) version counter — mutation bumps the version instead of cloning the
+  // whole state tree. Readers that call `signal.get()` during a read re-run
+  // on the next bump.
+  let version = 0;
+  const versionSignal = createSignal(version);
   const subs = new Set<() => void>();
   const proxyCache = new WeakMap<object, object>();
 
   const handler: ProxyHandler<Record<string, unknown>> = {
     get(target: Record<string, unknown>, prop: string | symbol) {
       const val = target[prop as string];
-      signal.get();
+      versionSignal.get();
       if (val && typeof val === 'object' && !Array.isArray(val)) {
         if (proxyCache.has(val as object)) {
           return proxyCache.get(val as object);
@@ -205,7 +211,8 @@ export function createDeepStore<T extends Record<string, unknown>>(initial: T): 
     },
     set(target: Record<string, unknown>, prop: string | symbol, value: unknown) {
       target[prop as string] = value;
-      signal.set({ ...signal.get() as any });
+      version++;
+      versionSignal.set(version);
       for (const fn of subs) fn();
       return true;
     },

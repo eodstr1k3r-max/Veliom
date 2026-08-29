@@ -21,8 +21,8 @@
 - **Minimal Core** — No bloat, just what you need
 - **API-Agnostic** — Use fetch, axios, GraphQL — your choice
 - **TypeScript Native** — Full type safety out of the box
-- **Security-Aware** — Built-in XSS protection (10 security fixes in v0.3.5)
-- **Production Ready** — 322 tests, strict-mode clean (v0.3.5)
+- **Security-Aware** — Built-in XSS protection (10 security fixes in v0.3.5, 1 more in v0.3.6)
+- **Production Ready** — 349 tests, strict-mode clean
 
 ---
 
@@ -416,7 +416,7 @@ npm install veliom
 ```bash
 npm install
 npm run dev       # Start dev server
-npm run test      # Run tests (322+)
+npm run test      # Run tests (349)
 npm run typecheck # TypeScript check (strict mode)
 npm run lint      # ESLint (0 warnings)
 npm run build     # Build for production

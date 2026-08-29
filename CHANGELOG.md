@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.6] - 2026-08-29
+
+### Fixed (Security)
+- `renderer.ts` — `formAction` protocol injection bypass: `DANGEROUS_ATTRS` listed `'formAction'` (camelCase) but the check lowercases the key, so `javascript:`/`data:`/`vbscript:` URLs in `formaction` were never blocked (CWE-79). List now uses the lowercase `'formaction'`.
+
+### Fixed (High)
+- `renderer.ts` — text nodes were never assigned `vnode.ref`, so `reconcile()` could not remove them: removing text children via patch left orphaned text nodes in the DOM. Text VNodes now carry their `Text` node as `ref` (VNode.ref widened to `Element | Text`).
+- `renderer.ts` — `patchVNode` updated text when `newVNode.type === 'text'` regardless of the old node type, so replacing an element with a text node silently wrote `.data` on an element and kept the old element in the DOM. Only `old.type === 'text'` takes the text patch path now; everything else goes through `replaceChild`.
+- `renderer.ts` — re-rendering into the same container kept stale entries in `eventMap` after `container.innerHTML = ''`, so destroyed elements kept delegation entries. `render()` now clears `eventMap`/`containerListeners` when the container changes.
+- `renderer.ts` — patching `style={{a, b}}` → `style={{a}}` left `b` applied via `style.cssText` semantics; removed-style keys are now explicitly cleared and `null`/`undefined`/`false` style values remove the property.
+- `component.ts` — `unmount()` never walked the VNode tree, leaking event-delegation entries and skipping plugin unmount hooks. `removeVNode()` is now exported and called from `unmount()`.
+
+### Fixed (Medium)
+- `component.ts` — `createComponent(() => () => VNode)` (inner render function, the documented README pattern) crashed with "result is not a function". `resolveRenderResult()` resolves render functions in `mount`, `update` and `memo`.
+- `store.ts` — `createSignal` methods referenced `this`, so destructured `set`/`update` threw `Cannot read properties of undefined`. Methods now close over the local `set`.
+- `store.ts` — `createDeepStore` still spread the whole state tree on every mutation (`O(n)`); the O(1) version-counter signal documented in v0.3.5 is now actually implemented.
+- `hooks.ts` — `useEffect(fn)` without a deps array only ran once (first mount); it now runs after every render with the previous cleanup, matching React semantics. `useEffect(fn, [])` is unchanged.
+- `hooks.ts` — `createEffect(fn, callback)` or a non-signal source crashed with a confusing `TypeError`; both now throw descriptive errors.
+- `router.ts` — `dispose()` accessed `window` unconditionally, crashing during SSR. Guarded with `typeof window === 'undefined'`.
+
+### Changed (SSR parity)
+- `ssr.ts` — `style` objects are now serialized to CSS text (`color:red;font-size:14px;`) instead of `[object Object]`; `classList` (array/object) maps to `class`; portal VNodes render all children instead of only the first.
+- `veliom.ts` — deduplicated the redundant second `useVirtualList` export; added `removeVNode` to the public API.
+
 ## [0.3.5] - 2026-07-25
 
 ### Fixed (Critical)

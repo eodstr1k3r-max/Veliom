@@ -1,6 +1,6 @@
 {
   "name": "veliom",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "Ultra-fast, minimal frontend framework with API-agnostic design",
   "type": "module",
   "sideEffects": false,
@@ -16,8 +16,19 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist",
-    "src"
+    "docs",
+    "examples",
+    "src",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "eslint.config.js",
+    "LICENSE",
+    "package.json",
+    "README.md",
+    "tsconfig.json",
+    "tsconfig.cjs.json",
+    "vite.config.ts",
+    "vitest.config.ts"
   ],
   "scripts": {
     "dev": "vite",

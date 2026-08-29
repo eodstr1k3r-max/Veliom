@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Veliom v0.3.6 Lazy Loading Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f1a; color: #eaeaea; min-height: 100vh; padding: 2rem;
+    }
+    .lazy-demo { max-width: 600px; margin: 0 auto; }
+    h1 { color: #00d9ff; font-size: 1.8rem; margin-bottom: 0.5rem; }
+    p { color: #888; margin-bottom: 1rem; }
+    .controls { display: flex; gap: 0.5rem; margin: 1.5rem 0; }
+    button {
+      padding: 0.6rem 1.2rem; border: 1px solid rgba(0,217,255,0.3);
+      background: #0f3460; color: #eaeaea; border-radius: 6px; cursor: pointer;
+      transition: all 0.2s;
+    }
+    button:hover:not(:disabled) { background: #1a4a7a; border-color: #00d9ff; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .heavy-component {
+      background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3);
+      border-radius: 8px; padding: 1.5rem; margin: 1rem 0;
+    }
+    .heavy-component h2 { color: #00ff88; margin-bottom: 0.5rem; }
+    .loading { text-align: center; padding: 2rem; color: #888; }
+    .spinner {
+      width: 36px; height: 36px; border: 3px solid rgba(0,217,255,0.2);
+      border-top-color: #00d9ff; border-radius: 50%; margin: 0 auto 0.75rem;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .suspense-fallback {
+      background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15);
+      border-radius: 8px; padding: 1rem; text-align: center; margin: 1rem 0;
+    }
+    .status { margin-top: 1.5rem; color: #666; font-size: 0.9rem; }
+    .status p { margin: 0.25rem 0; }
+    .error { color: #ff4444; }
+    hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 1.5rem 0 1rem; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="./lazy-demo.ts"></script>
+</body>
+</html>

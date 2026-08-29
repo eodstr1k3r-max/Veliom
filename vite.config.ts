@@ -15,6 +15,7 @@ export default defineConfig({
         advanced: resolve(__dirname, 'examples/advanced.html'),
         api: resolve(__dirname, 'examples/api-example.html'),
         features: resolve(__dirname, 'examples/features.html'),
+        lazy: resolve(__dirname, 'examples/lazy-demo.html'),
       },
     },
   },

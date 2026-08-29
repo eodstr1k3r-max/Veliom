@@ -3,7 +3,7 @@ export interface VNode {
   props: Record<string, unknown>;
   children?: VNode[];
   key?: string;
-  ref?: Element;
+  ref?: Element | Text;
 }
 
 export interface DOMNode {
@@ -106,6 +106,8 @@ export function h(
 export function render(vnode: VNode, container: Element): void;
 
 export function patch(container: Element, oldVNode: VNode, newVNode: VNode): void;
+
+export function removeVNode(vnode: VNode): void;
 
 export function setEventContainer(container: Element): void;
 

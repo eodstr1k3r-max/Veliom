@@ -70,9 +70,12 @@ export function useEffect(fn: EffectFn, deps?: unknown[]): void {
     });
   };
 
-  if (!existingEffect) {
+  // No deps array → effect runs after every render (incl. previous cleanup).
+  if (deps === undefined) {
     schedule();
-  } else if (deps && !depsEqual(existingEffect.deps, deps)) {
+  } else if (!existingEffect) {
+    schedule();
+  } else if (!depsEqual(existingEffect.deps, deps)) {
     schedule();
   }
 }
@@ -716,6 +719,15 @@ export function createEffect<T>(
     return () => {
       if (dispose) dispose();
     };
+  }
+
+  // Invalid usage guards: mixing fn with a function source, or passing a
+  // non-signal source, used to crash with a confusing TypeError.
+  if (typeof sourceOrFn === 'function') {
+    throw new Error('createEffect: a signal source is required when a callback is provided (got a function)');
+  }
+  if (sourceOrFn === null || typeof sourceOrFn !== 'object' || typeof (sourceOrFn as { get?: unknown }).get !== 'function') {
+    throw new Error('createEffect: source must be a signal or a function');
   }
 
   const source = sourceOrFn as Signal<unknown>;

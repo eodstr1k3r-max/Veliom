@@ -3,7 +3,7 @@ export interface VNode {
   props: Record<string, unknown>;
   children?: VNode[];
   key?: string;
-  ref?: Element;
+  ref?: Element | Text;
 }
 
 const FRAGMENT = 'fragment';
@@ -136,7 +136,7 @@ function execRef(ref: unknown, el: Element | null): void {
   }
 }
 
-const DANGEROUS_ATTRS = ['href', 'src', 'action', 'formAction', 'xlink:href'];
+const DANGEROUS_ATTRS = ['href', 'src', 'action', 'formaction', 'xlink:href'];
 const JAVASCRIPT_PROTOCOLS = ['javascript:', 'data:', 'vbscript:'];
 
 function isSafeAttribute(key: string, value: unknown): boolean {
@@ -147,6 +147,15 @@ function isSafeAttribute(key: string, value: unknown): boolean {
     }
   }
   return true;
+}
+
+function removeStyleKeys(el: HTMLElement, oldStyle: Record<string, unknown>, newStyle?: Record<string, unknown>): void {
+  const newKeys = new Set(Object.keys(newStyle ?? {}));
+  for (const key of Object.keys(oldStyle)) {
+    if (!newKeys.has(key)) {
+      (el.style as unknown as Record<string, string>)[key] = '';
+    }
+  }
 }
 
 const ATTR_ALIAS: Record<string, string> = {
@@ -198,7 +207,15 @@ function applyProps(element: Element, props: Record<string, unknown>): void {
         console.warn(`Veliom: Ignoring non-function event handler for "${key}"`);
       }
     } else if (key === 'style' && typeof value === 'object' && value !== null) {
-      Object.assign((element as HTMLElement).style, value);
+      const styleObj = value as Record<string, unknown>;
+      for (const styleKey of Object.keys(styleObj)) {
+        const styleValue = styleObj[styleKey];
+        if (styleValue === null || styleValue === undefined || styleValue === false) {
+          (element as HTMLElement).style.removeProperty(styleKey);
+        } else {
+          (element as HTMLElement).style.setProperty(styleKey, String(styleValue));
+        }
+      }
     } else if (key === 'dangerouslySetInnerHTML' && typeof value === 'object' && value !== null) {
       const html = (value as { __html: string }).__html;
       if (typeof html === 'string') {
@@ -225,7 +242,9 @@ export function createElement(vnode: VNode, parent?: Element): Element | Text | 
   pluginRunner.beforeCreate(vnode);
 
   if (vnode.type === 'text') {
-    return document.createTextNode(String(vnode.props.value));
+    const textNode = document.createTextNode(String(vnode.props.value));
+    vnode.ref = textNode;
+    return textNode;
   }
 
   if (vnode.type === FRAGMENT) {
@@ -294,7 +313,7 @@ export function createElement(vnode: VNode, parent?: Element): Element | Text | 
   return element;
 }
 
-function removeVNode(vnode: VNode): void {
+export function removeVNode(vnode: VNode): void {
   pluginRunner.beforeUnmount(vnode);
   if (vnode.ref) {
     detachAllEvents(vnode.ref as Element);
@@ -460,11 +479,11 @@ function patchVNode(
     return;
   }
 
-  if (newVNode.type === 'text') {
+  if (newVNode.type === 'text' && oldVNode.type === 'text') {
     if (oldVNode.props.value !== newVNode.props.value) {
       (existingElement as Text).data = String(newVNode.props.value);
     }
-    newVNode.ref = existingElement as Element;
+    newVNode.ref = existingElement as Element | Text;
     return;
   }
 
@@ -484,6 +503,8 @@ function patchVNode(
   const el = existingElement as Element;
   const oldKeys = Object.keys(oldVNode.props);
   const newKeys = new Set(Object.keys(newVNode.props));
+  const oldStyle = oldVNode.props.style;
+  const newStyle = newVNode.props.style;
 
   for (let i = 0; i < oldKeys.length; i++) {
     const key = oldKeys[i];
@@ -506,6 +527,10 @@ function patchVNode(
         el.removeAttribute(attrKey);
       }
     }
+  }
+
+  if (oldStyle && typeof oldStyle === 'object') {
+    removeStyleKeys(el as HTMLElement, oldStyle as Record<string, unknown>, typeof newStyle === 'object' && newStyle !== null ? (newStyle as Record<string, unknown>) : undefined);
   }
 
   const newRef = 'ref' in newVNode.props ? newVNode.props.ref : undefined;
@@ -573,6 +598,17 @@ function buildKeyMap(children: VNode[]): Map<string | number, VNode> {
 }
 
 export function render(vnode: VNode, container: Element): void {
+  if (eventContainer !== container) {
+    if (eventContainer) {
+      for (const [eventName, entry] of containerListeners) {
+        if (entry.container === eventContainer) {
+          eventContainer.removeEventListener(eventName, entry.handler);
+        }
+      }
+    }
+    containerListeners.clear();
+    eventMap.clear();
+  }
   setEventContainer(container);
   container.innerHTML = '';
   pluginRunner.beforeMount(vnode);

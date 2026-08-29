@@ -104,6 +104,7 @@ export function createRouter(routes: RouteDefinition[], options: RouterOptions =
       return mode === 'hash' ? '#' + path : base.replace(/\/$/, '') + path;
     },
     dispose() {
+      if (typeof window === 'undefined') return;
       window.removeEventListener('popstate', handlePop);
       window.removeEventListener('hashchange', handlePop);
     },

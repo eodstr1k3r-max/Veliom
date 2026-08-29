@@ -1,4 +1,4 @@
-import { h, VNode, render, patch } from './renderer';
+import { h, VNode, render, patch, removeVNode } from './renderer';
 import {
   pushComponentContext,
   popComponentContext,
@@ -15,6 +15,12 @@ export interface ComponentProps {
 }
 
 export type ComponentRender<P = ComponentProps> = (props: P) => VNode | (() => VNode);
+
+export function resolveRenderResult(
+  result: VNode | (() => VNode)
+): VNode {
+  return typeof result === 'function' ? (result as () => VNode)() : result;
+}
 
 export interface Component<P = ComponentProps> {
   render: (props: P) => VNode;
@@ -51,7 +57,7 @@ export function mount<P = ComponentProps>(
 
   let vnode: VNode;
   try {
-    vnode = (comp.render as (props: ComponentProps) => VNode)(props as unknown as ComponentProps);
+    vnode = resolveRenderResult((comp.render as (props: ComponentProps) => VNode | (() => VNode))(props as unknown as ComponentProps));
   } catch (err) {
     reportError(err);
     vnode = { type: 'empty', props: {} };
@@ -92,7 +98,7 @@ export function update<P = ComponentProps>(
 
   let newVNode: VNode;
   try {
-    newVNode = instance.component.render(instance.props);
+    newVNode = resolveRenderResult(instance.component.render(instance.props));
   } catch (err) {
     reportError(err);
     newVNode = { type: 'empty', props: {} };
@@ -122,6 +128,9 @@ export function unmount(container: Element): void {
   if (instance.lifecycle.onUnmount) {
     instance.lifecycle.onUnmount();
   }
+  if (instance.vnode) {
+    removeVNode(instance.vnode);
+  }
   container.innerHTML = '';
   componentRoots.delete(container);
 }
@@ -149,7 +158,7 @@ export function memo<P = ComponentProps>(
       return lastVNode;
     }
     lastProps = { ...props };
-    lastVNode = renderFn(props) as VNode;
+    lastVNode = resolveRenderResult(renderFn(props));
     return lastVNode;
   };
 

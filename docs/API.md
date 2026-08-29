@@ -1,5 +1,7 @@
 # Veliom - API Reference
 
+> Updated for **v0.3.6** (2026-08-29).
+
 ## Table of Contents
 
 1. [Core Functions](#core-functions)
@@ -60,9 +62,18 @@ Patches the DOM with a new VNode.
 patch(container, oldVNode, newVNode);
 ```
 
-### `createElement(type, props?, ...children)`
+### `removeVNode(vnode)`
 
-Alias for `h()`.
+Recursively walks a VNode tree, detaches delegated event handlers, calls `ref` callbacks with `null` and fires plugin `beforeUnmount`/`unmounted` hooks. Used internally by `unmount()`; exported for advanced cleanup scenarios.
+
+### `createElement(vnode)`
+
+Creates the DOM nodes for an existing VNode (used internally by the renderer).
+
+```typescript
+import { createElement } from 'veliom';
+const el = createElement(h('div', null, 'Hello')); // HTMLElement
+```
 
 ---
 
@@ -126,8 +137,8 @@ Renders a component dynamically by tag name or component function.
 ```typescript
 import { Dynamic, h } from 'veliom';
 
-Dynamic({ component: 'div', props: { class: 'box' }, children: 'content' });
-Dynamic({ component: MyComponent, props: { name: 'test' } });
+Dynamic({ component: 'div', class: 'box', children: 'content' });
+Dynamic({ component: MyComponent, name: 'test' });
 ```
 
 ### `ErrorBoundary`
@@ -139,7 +150,7 @@ import { ErrorBoundary, h } from 'veliom';
 
 ErrorBoundary({
   fallback: (error) => h('div', null, `Error: ${error.message}`),
-  children: () => h(MyComponent)
+  children: () => MyComponent({})
 });
 ```
 
@@ -175,7 +186,8 @@ Programmatic portal.
 
 ```typescript
 import { createPortal, h } from 'veliom';
-createPortal(h('div', null, 'Portal'), document.body);
+createPortal({ children: h('div', null, 'Portal'), target: document.body });
+createPortal({ children: h('div', null, 'Portal') }); // defaults to document.body
 ```
 
 ### `lazy(loader, options?)`
@@ -258,8 +270,8 @@ Caches a component's VNode + DOM element by key. On re-mount, restores the cache
 import { KeepAlive, h } from 'veliom';
 
 // Wrapped component is cached by key
-KeepAlive({ key: 'tab-1', children: h(TabContent) });
-KeepAlive({ key: 'tab-2', children: h(OtherTab) });
+KeepAlive({ key: 'tab-1', children: TabContent({}) });
+KeepAlive({ key: 'tab-2', children: OtherTab({}) });
 ```
 
 ### `clearKeepAliveCache(key?)`
@@ -288,8 +300,12 @@ Transition({ show: isVisible, name: 'fade',
 ```
 
 Applies CSS classes in order:
-- Enter: `{name}-enter-from` → `{name}-enter-active` → `{name}-enter-to` (removes `-from`/`-to` on `transitionend`)
-- Leave: `{name}-leave-from` → `{name}-leave-active` → `{name}-leave-to` (removes element on `transitionend`)
+- Enter (when `show` becomes true): `{name}-enter-from` → `{name}-enter-active` → `{name}-enter-to` (removes `-from`/`-to` on `transitionend`)
+- When `show` is false, renders an empty node — the leave animation is not automatic. Use `leaveTransition(el, name, onDone?)` manually before hiding:
+
+```typescript
+leaveTransition(el, 'fade', () => setVisible(false));
+```
 
 ### `createTransitionClasses(element, name, onDone?)`
 
@@ -346,7 +362,7 @@ Switch({
 Renders a list with optional key.
 
 ```typescript
-For({ each: items, key: 'id', children: (item, index) =>
+For({ each: items, key: (item) => String(item.id), children: (item, index) =>
   h('div', null, `${index}. ${item.name}`)
 });
 ```
@@ -385,8 +401,8 @@ Returns `{ currentPath, params, navigate, resolve, dispose }`.
 Matches a path and renders the component.
 
 ```typescript
-h(Route, { path: '/', router, component: Home });
-h(Route, { path: '/users/:id', router, component: UserProfile, fallback: NotFound });
+Route({ path: '/', router, component: Home });
+Route({ path: '/users/:id', router, component: UserProfile, fallback: NotFound });
 ```
 
 ### `Link`
@@ -394,7 +410,7 @@ h(Route, { path: '/users/:id', router, component: UserProfile, fallback: NotFoun
 Navigation link (prevents default, uses router navigate).
 
 ```typescript
-h(Link, { to: '/home', router }, h('span', null, 'Home'));
+Link({ to: '/home', router, children: h('span', null, 'Home') });
 ```
 
 ### `useRouter(router)`
@@ -441,9 +457,9 @@ Proxy-based deep reactive store.
 
 ```typescript
 const store = createDeepStore({ users: [{ name: 'Alice' }] });
-store.users[0].name;  // auto-tracked
-const unsub = store.subscribe((next) => console.log(next));
-store.users.push({ name: 'Bob' }); // triggers subscriber
+store.state.users[0].name;  // auto-tracked (proxy)
+const unsub = store.subscribe(() => console.log('mutated'));
+store.state.users.push({ name: 'Bob' }); // triggers subscriber
 ```
 
 ### `createComputed(compute, deps?)`
@@ -495,18 +511,19 @@ loading();  // boolean
 refetch();  // re-execute fetcher
 ```
 
-### `createResource(fetcher, options?)`
+### `createResource(fetcher, source?)`
 
-Reactive data fetching.
+Reactive data fetching. Accepts an optional source signal — when the source changes, the fetcher re-runs automatically.
 
 ```typescript
-const [resource, { mutate, refetch }] = createResource(
-  (id) => fetch(`/api/users/${id}`).then(r => r.json()),
-  { initial: null }
-);
-resource().loading;   // boolean
-resource().error;     // Error | null
-resource().data;      // T | null
+const users = createResource(() => fetch('/api/users').then(r => r.json()));
+
+users.loading();   // boolean
+users.error();     // Error | null
+users.data();      // T | undefined
+users.refetch();   // re-run fetcher
+users.mutate(data); // set data locally without refetch
+users.dispose();   // stop tracking + subscriptions
 ```
 
 ### `batch(fn)`
@@ -551,11 +568,17 @@ el.current?.focus();
 
 ### `useEffect(fn, deps?)`
 
+Schedules the effect as a microtask after render. Cleanup from the previous run runs before the next effect run.
+
 ```typescript
 useEffect(() => {
   fetch('/api/data').then(setData);
   return () => cleanup();
-}, []);
+}, []); // runs once (empty deps)
+
+useEffect(() => {
+  document.title = `Count: ${getCount()}`;
+}); // no deps → runs after every render (v0.3.6+)
 ```
 
 ### `useMemo(fn, deps)`
@@ -745,15 +768,16 @@ import { useVirtualList } from 'veliom';
 
 const items = Array.from({ length: 10000 }, (_, i) => `Item ${i}`);
 
-const { visibleItems, totalHeight, scrollTo } = useVirtualList(items, {
+const { visibleItems, totalHeight, scrollTo } = useVirtualList({
+  items: () => list.get(),
   itemHeight: 50,
   overscan: 5,
-  containerRef: containerEl,
+  containerRef, // { current: HTMLElement | null }
 });
 
-visibleItems(); // { index, data, offsetY }[] — only visible + overscan
+visibleItems(); // { item, index, offsetY }[] — only visible + overscan
 totalHeight();  // total scroll height
-scrollTo(500);  // scroll to pixel position
+scrollTo(500);  // scroll to item index
 ```
 
 ### `createEffect(fn)` / `createEffect(signal, callback)`
@@ -826,7 +850,7 @@ Detects clicks outside an element (capture phase).
 import { onClickOutside } from 'veliom';
 
 onClickOutside(el, () => console.log('clicked outside'));
-onClickOutside(el, handler, { enabled: isOpen }); // conditional
+onClickOutside(el, handler, isOpen); // conditional (boolean)
 onClickOutside(null, handler); // noop when element is null
 ```
 
@@ -875,9 +899,15 @@ ref.current?.focus();
 
 Merges multiple refs into one callback ref.
 
-### `createSuspense()`
+### `createSuspense(fallback)`
 
-Creates a suspense boundary.
+Creates a suspense boundary with a fixed fallback.
+
+```typescript
+const { Suspense, preload } = createSuspense(h('div', null, 'Loading...'));
+Suspense({ children: LazyComponent });
+preload(LazyComponent);
+```
 
 ### `preload(lazyComponent)`
 

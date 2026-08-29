@@ -57,6 +57,7 @@ export {
   useHover,
   useScrollPosition,
   useIdleTimer,
+  useVirtualList,
   createEffect,
 } from './state/hooks';
 export {
@@ -186,9 +187,6 @@ export {
   renderToStringWithData,
 } from './core/ssr';
 export {
-  useVirtualList,
-} from './state/hooks';
-export {
   longestIncreasingSubsequence,
 } from './utils/lis';
 export {
@@ -196,3 +194,4 @@ export {
   removePlugin,
   clearPlugins,
 } from './core/plugin';
+export { removeVNode } from './core/renderer';
