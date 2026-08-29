@@ -1,5 +1,5 @@
-import { createSignal, Signal } from '../state/store';
-import { VNode } from './renderer';
+import { createSignal, Signal } from '../state/store.js';
+import { VNode } from './renderer.js';
 
 export interface AwaitProps<T> {
   promise: Promise<T> | (() => Promise<T>);

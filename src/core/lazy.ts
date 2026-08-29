@@ -1,5 +1,5 @@
-import { Component, ComponentProps } from '../core/component';
-import { createSignal } from '../state/store';
+import { Component, ComponentProps } from '../core/component.js';
+import { createSignal } from '../state/store.js';
 
 export interface LazyOptions {
   fallback?: import('../core/renderer').VNode;

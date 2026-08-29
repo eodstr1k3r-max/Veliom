@@ -1,4 +1,4 @@
-import type { ComponentInstance, ComponentProps } from '../core/component';
+import type { ComponentInstance, ComponentProps } from '../core/component.js';
 
 type LifecycleHook = () => void | (() => void);
 type CleanupFn = () => void;

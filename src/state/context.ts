@@ -1,4 +1,4 @@
-import { getCurrentContext, getContextStack } from './hooks';
+import { getCurrentContext, getContextStack } from './hooks.js';
 
 export interface Context<T> {
   id: symbol;

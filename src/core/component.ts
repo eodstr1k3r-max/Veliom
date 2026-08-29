@@ -1,13 +1,13 @@
-import { h, VNode, render, patch, removeVNode } from './renderer';
+import { h, VNode, render, patch, removeVNode } from './renderer.js';
 import {
   pushComponentContext,
   popComponentContext,
   runEffects,
   cleanupEffects,
   Context,
-} from '../state/hooks';
-import { pushLifecycleContext, popLifecycleContext, triggerOnMount, LifecycleCallbacks } from '../state/lifecycle';
-import { reportError } from './error';
+} from '../state/hooks.js';
+import { pushLifecycleContext, popLifecycleContext, triggerOnMount, LifecycleCallbacks } from '../state/lifecycle.js';
+import { reportError } from './error.js';
 
 export interface ComponentProps {
   children?: VNode[];

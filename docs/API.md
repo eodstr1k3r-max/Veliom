@@ -1,6 +1,6 @@
 # Veliom - API Reference
 
-> Updated for **v0.3.6** (2026-08-29).
+> Updated for **v0.3.7** (2026-08-29).
 
 ## Table of Contents
 
@@ -43,7 +43,7 @@ h('div', { classList: { active: true, disabled: false } });
 h('div', { dangerouslySetInnerHTML: { __html: '<b>bold</b>' } });
 ```
 
-Attribute aliases: `htmlFor`→`for`, `className`→`class`, `readOnly`→`readonly`, `htmlFor`→`for`, `crossOrigin`→`crossorigin`.
+Attribute aliases: `htmlFor`→`for`, `className`→`class`, `classList`→`class`, `readOnly`→`readonly`, `autoFocus`→`autofocus`, `autoPlay`→`autoplay`, `tabIndex`→`tabindex`, `colSpan`→`colspan`, `rowSpan`→`rowspan`, `encType`→`enctype`, `formAction`→`formaction`, `httpEquiv`→`http-equiv`, `acceptCharset`→`accept-charset`.
 
 ### `render(vnode, container)`
 
@@ -66,12 +66,13 @@ patch(container, oldVNode, newVNode);
 
 Recursively walks a VNode tree, detaches delegated event handlers, calls `ref` callbacks with `null` and fires plugin `beforeUnmount`/`unmounted` hooks. Used internally by `unmount()`; exported for advanced cleanup scenarios.
 
-### `createElement(vnode)`
+### `createElement(vnode, parent?)`
 
-Creates the DOM nodes for an existing VNode (used internally by the renderer).
+Creates the DOM nodes for an existing VNode (used internally by the renderer). Not exported from the package entry — import it from `veliom/dist/core/renderer.js` when needed.
 
 ```typescript
-import { createElement } from 'veliom';
+import { createElement } from 'veliom/dist/core/renderer.js';
+import { h } from 'veliom';
 const el = createElement(h('div', null, 'Hello')); // HTMLElement
 ```
 
@@ -289,7 +290,7 @@ clearKeepAliveCache('tab-1'); // clear specific
 
 ### `Transition`
 
-CSS class-based enter/leave animation component.
+CSS class-based enter animation component (leave is manual via `leaveTransition`).
 
 ```typescript
 import { Transition, h } from 'veliom';
@@ -306,6 +307,8 @@ Applies CSS classes in order:
 ```typescript
 leaveTransition(el, 'fade', () => setVisible(false));
 ```
+
+Leave classes (`{name}-leave-from`, `{name}-leave-active`, `{name}-leave-to`) are only applied by `leaveTransition()` — the `Transition` component itself animates the enter side only.
 
 ### `createTransitionClasses(element, name, onDone?)`
 
@@ -578,7 +581,7 @@ useEffect(() => {
 
 useEffect(() => {
   document.title = `Count: ${getCount()}`;
-}); // no deps → runs after every render (v0.3.6+)
+}); // no deps → runs after every render (v0.3.7+)
 ```
 
 ### `useMemo(fn, deps)`
@@ -759,14 +762,12 @@ const isIdle = useIdleTimer(30000); // default 60s
 isIdle(); // true after inactivity
 ```
 
-### `useVirtualList(items, options)`
+### `useVirtualList(options)`
 
 Virtual scrolling hook — renders only visible items.
 
 ```typescript
 import { useVirtualList } from 'veliom';
-
-const items = Array.from({ length: 10000 }, (_, i) => `Item ${i}`);
 
 const { visibleItems, totalHeight, scrollTo } = useVirtualList({
   items: () => list.get(),
@@ -829,7 +830,7 @@ import { createContext, useContext, provideContext, h } from 'veliom';
 const Theme = createContext('light');
 
 // Provider as direct function call
-Theme.Provider({ value: 'dark', children: h(Consumer) });
+Theme.Provider({ value: 'dark', children: Consumer({}) });
 
 // Consume
 const theme = useContext(Theme); // 'dark'
@@ -842,7 +843,7 @@ provideContext(Theme, 'dark');
 
 ## Events
 
-### `onClickOutside(element, handler, options?)`
+### `onClickOutside(element, handler, enabled?)`
 
 Detects clicks outside an element (capture phase).
 
@@ -1008,7 +1009,7 @@ Runs predefined performance tests.
 
 ### `renderToString(vnode)`
 
-Converts a VNode tree to an HTML string. Supports fragments, portals (renders children only), text nodes, and void elements.
+Converts a VNode tree to an HTML string. Supports fragments, portals (renders all children), text nodes, void elements, `style` objects (serialized to CSS text) and `classList` (array/object).
 
 ```typescript
 import { renderToString, h } from 'veliom';

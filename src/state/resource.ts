@@ -1,5 +1,5 @@
-import { Signal, pushTrackingEffect, popTrackingEffect } from './store';
-import { createFetcher } from './async';
+import { Signal, pushTrackingEffect, popTrackingEffect } from './store.js';
+import { createFetcher } from './async.js';
 
 export interface ResourceState<T> {
   loading: boolean;

@@ -139,7 +139,7 @@ const DevToolsDemo = createComponent(() => {
 
 const App = createComponent(() => {
   return () => h('div', { style: 'font-family:-apple-system,sans-serif;max-width:600px;margin:2rem auto;padding:2rem;color:#eaeaea;' },
-    h('h1', { style: 'color:#00d9ff;' }, 'Veliom v0.3.6 Features'),
+    h('h1', { style: 'color:#00d9ff;' }, 'Veliom v0.3.7 Features'),
     h('p', { style: 'color:#888;margin-bottom:2rem;' },
       'Plugin System · KeepAlive · Transition · useVirtualList · DevTools'),
 

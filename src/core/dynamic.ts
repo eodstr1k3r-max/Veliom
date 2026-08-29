@@ -1,4 +1,4 @@
-import { VNode, h } from './renderer';
+import { VNode, h } from './renderer.js';
 
 export interface DynamicProps {
   component?: string | ((props: Record<string, unknown>) => VNode);

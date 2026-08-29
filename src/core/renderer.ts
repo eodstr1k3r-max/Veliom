@@ -16,9 +16,9 @@ export interface DOMNode {
   vnode: VNode;
 }
 
-import { longestIncreasingSubsequence } from '../utils/lis';
-import { sanitizeHtml } from '../utils/sanitize';
-import { pluginRunner } from './plugin';
+import { longestIncreasingSubsequence } from '../utils/lis.js';
+import { sanitizeHtml } from '../utils/sanitize.js';
+import { pluginRunner } from './plugin.js';
 
 export function h(
   type: string,

@@ -104,7 +104,7 @@ const App = createComponent(() => {
     h('div', { className: 'app' },
       h('header', null,
         h('h1', null, 'Veliom Framework'),
-        h('span', { className: 'version' }, 'v0.3.6')
+        h('span', { className: 'version' }, 'v0.3.7')
       ),
 
       Modal({

@@ -1,4 +1,4 @@
-import { VNode } from '../core/renderer';
+import { VNode } from '../core/renderer.js';
 
 let componentCount = 0;
 let signalCount = 0;

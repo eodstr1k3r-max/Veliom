@@ -1,6 +1,6 @@
-import type { VNode } from './renderer';
-import type { LazyComponent } from './lazy';
-import type { ComponentRender } from './component';
+import type { VNode } from './renderer.js';
+import type { LazyComponent } from './lazy.js';
+import type { ComponentRender } from './component.js';
 
 export interface SuspenseProps {
   children: LazyComponent | ComponentRender;

@@ -1,5 +1,5 @@
-import { VNode } from './renderer';
-import { createPortal } from './portal';
+import { VNode } from './renderer.js';
+import { createPortal } from './portal.js';
 
 export interface TeleportProps {
   to: string | Element;

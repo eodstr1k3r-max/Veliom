@@ -1,5 +1,5 @@
-import { VNode } from './renderer';
-import { sanitizeHtml } from '../utils/sanitize';
+import { VNode } from './renderer.js';
+import { sanitizeHtml } from '../utils/sanitize.js';
 
 const VOID_ELEMENTS = new Set([
   'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',

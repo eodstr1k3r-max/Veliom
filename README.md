@@ -21,8 +21,19 @@
 - **Minimal Core** — No bloat, just what you need
 - **API-Agnostic** — Use fetch, axios, GraphQL — your choice
 - **TypeScript Native** — Full type safety out of the box
+- **ESM & CJS** — Dual package with working `import` and `require` out of the box (verified in the build pipeline)
 - **Security-Aware** — Built-in XSS protection (11 security fixes)
-- **Production Ready** — 349 tests, strict-mode clean
+- **Production Ready** — 349 tests, strict-mode clean, zero runtime dependencies
+
+---
+
+## ✨ What's New in v0.3.7
+
+- **Fixed ESM & CJS builds** — extensionless imports broke `import` in native Node ESM; CJS files were treated as ESM under Node ≥ 22. Both are fixed and guarded by `npm run smoke` before every publish.
+- **Security fix** — `formAction` no longer accepts `javascript:`/`data:`/`vbscript:` URLs (CWE-79).
+- **Rendering fixes** — text nodes are now correctly removed on patch, removed `style` keys are cleaned up, stale event-delegation entries are cleared on re-render, and `unmount()` fully cleans up the VNode tree (`removeVNode`).
+- **`useEffect` without deps** now runs after every render (with previous cleanup), matching React semantics.
+- **Docs & examples** updated to the real API (direct component calls, correct signatures, new `lazy-demo` page).
 
 ---
 
@@ -247,7 +258,7 @@ createTransitionClasses(el, 'fade', () => console.log('enter done'));
 // Manual leave animation
 leaveTransition(el, 'fade', () => console.log('leave done'));
 ```
-Applies classes: `{name}-enter-from`, `{name}-enter-active`, `{name}-enter-to` / `{name}-leave-from`, `{name}-leave-active`, `{name}-leave-to`.
+Enter animation applies: `{name}-enter-from` → `{name}-enter-active` → `{name}-enter-to`. Leave classes (`{name}-leave-from`, `{name}-leave-active`, `{name}-leave-to`) are applied by `leaveTransition()` — the component itself only animates the enter side.
 
 ### 🌐 Server-Side Rendering
 ```typescript
@@ -430,6 +441,7 @@ npm run test      # Run tests (349)
 npm run typecheck # TypeScript check (strict mode)
 npm run lint      # ESLint (0 warnings)
 npm run build     # Build for production
+npm run smoke     # Verify built ESM + CJS output loads under Node
 ```
 
 ---

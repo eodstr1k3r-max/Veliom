@@ -1,5 +1,5 @@
-import { createSignal, Signal } from '../state/store';
-import { VNode, h } from './renderer';
+import { createSignal, Signal } from '../state/store.js';
+import { VNode, h } from './renderer.js';
 
 export interface RouteDefinition {
   path: string;

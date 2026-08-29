@@ -1,4 +1,4 @@
-import { createSignal } from './store';
+import { createSignal } from './store.js';
 
 export interface AsyncState<T> {
   data: () => T | undefined;

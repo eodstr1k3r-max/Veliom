@@ -1,4 +1,4 @@
-import { VNode } from '../core/renderer';
+import { VNode } from '../core/renderer.js';
 
 function flattenFragment(children: VNode[]): VNode[] {
   const result: VNode[] = [];

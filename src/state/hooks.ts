@@ -1,4 +1,4 @@
-import { createSignal, Signal, pushTrackingEffect, popTrackingEffect } from './store';
+import { createSignal, Signal, pushTrackingEffect, popTrackingEffect } from './store.js';
 
 export type CleanupFn = () => void;
 export type EffectFn = () => CleanupFn | void;

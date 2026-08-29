@@ -1,4 +1,4 @@
-import { VNode } from './renderer';
+import { VNode } from './renderer.js';
 
 const TRANSITION_TIMEOUT = 500;
 

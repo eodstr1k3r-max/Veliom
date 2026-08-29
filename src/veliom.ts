@@ -1,4 +1,4 @@
-export { h, render, patch, VNode, DOMNode, setEventContainer } from './core/renderer';
+export { h, render, patch, VNode, DOMNode, setEventContainer } from './core/renderer.js';
 export {
   createComponent,
   mount,
@@ -9,7 +9,7 @@ export {
   ComponentProps,
   ComponentRender,
   ComponentInstance,
-} from './core/component';
+} from './core/component.js';
 export {
   createSignal,
   createStore,
@@ -23,12 +23,12 @@ export {
   Store,
   Computed,
   Memo,
-} from './state/store';
+} from './state/store.js';
 export {
   createResource,
   Resource,
   ResourceState,
-} from './state/resource';
+} from './state/resource.js';
 export {
   useEffect,
   useMemo,
@@ -59,7 +59,7 @@ export {
   useIdleTimer,
   useVirtualList,
   createEffect,
-} from './state/hooks';
+} from './state/hooks.js';
 export {
   onMount,
   onUpdate,
@@ -67,20 +67,20 @@ export {
   registerLifecycle,
   unregisterLifecycle,
   getLifecycle,
-} from './state/lifecycle';
+} from './state/lifecycle.js';
 export {
   createContext,
   useContext,
   provideContext,
   Context,
-} from './state/context';
+} from './state/context.js';
 export {
   createRef,
   mergeRefs,
   Ref,
   RefCallback,
   RefObject,
-} from './core/refs';
+} from './core/refs.js';
 export {
   Fragment,
   Show,
@@ -88,15 +88,15 @@ export {
   Match,
   For,
   Index,
-} from './core/control';
+} from './core/control.js';
 export {
   Await,
   AwaitProps,
-} from './core/await';
+} from './core/await.js';
 export {
   Teleport,
   TeleportProps,
-} from './core/teleport';
+} from './core/teleport.js';
 export {
   createErrorBoundary,
   ErrorBoundary,
@@ -106,34 +106,34 @@ export {
   ErrorBoundaryState,
   ErrorInfo,
   ErrorHandler,
-} from './core/error';
+} from './core/error.js';
 export {
   createPortal,
   setPortalContainer,
   PortalProps,
-} from './core/portal';
+} from './core/portal.js';
 export {
   lazy,
   preload,
   LazyComponent,
   LazyOptions,
-} from './core/lazy';
+} from './core/lazy.js';
 export {
   Suspense,
   createSuspense,
   SuspenseProps,
-} from './core/suspense';
+} from './core/suspense.js';
 export {
   benchmark,
   compareBenchmarks,
   runPerformanceTests,
   BenchmarkResult,
   BenchmarkOptions,
-} from './utils/benchmark';
+} from './utils/benchmark.js';
 export {
   Dynamic,
   DynamicProps,
-} from './core/dynamic';
+} from './core/dynamic.js';
 export {
   Children,
   toArray,
@@ -141,15 +141,15 @@ export {
   forEach as childrenForEach,
   only as childrenOnly,
   count as childrenCount,
-} from './utils/children';
+} from './utils/children.js';
 export {
   onClickOutside,
-} from './utils/events';
+} from './utils/events.js';
 export {
   enableDevTools,
   disableDevTools,
   isDevToolsEnabled,
-} from './utils/devtools';
+} from './utils/devtools.js';
 export {
   createRouter,
   Route,
@@ -158,40 +158,40 @@ export {
   Router,
   RouteDefinition,
   RouterOptions,
-} from './core/router';
+} from './core/router.js';
 export {
   createAsync,
   AsyncState,
-} from './state/async';
+} from './state/async.js';
 export {
   scheduleDOMUpdate,
   flushDOMUpdates,
-} from './core/scheduler';
+} from './core/scheduler.js';
 export {
   usePlugin,
   Plugin,
   PluginHooks,
-} from './core/plugin';
+} from './core/plugin.js';
 export {
   KeepAlive,
   clearKeepAliveCache,
-} from './core/keepAlive';
+} from './core/keepAlive.js';
 export {
   Transition,
   createTransitionClasses,
   leaveTransition,
   TransitionProps,
-} from './core/transition';
+} from './core/transition.js';
 export {
   renderToString,
   renderToStringWithData,
-} from './core/ssr';
+} from './core/ssr.js';
 export {
   longestIncreasingSubsequence,
-} from './utils/lis';
+} from './utils/lis.js';
 export {
   getPlugins,
   removePlugin,
   clearPlugins,
-} from './core/plugin';
-export { removeVNode } from './core/renderer';
+} from './core/plugin.js';
+export { removeVNode } from './core/renderer.js';

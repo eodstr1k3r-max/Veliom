@@ -1,5 +1,5 @@
-import { h } from '../core/renderer';
-import { createSignal, batch } from '../state/store';
+import { h } from '../core/renderer.js';
+import { createSignal, batch } from '../state/store.js';
 
 export interface BenchmarkResult {
   name: string;

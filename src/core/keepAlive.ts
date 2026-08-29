@@ -1,4 +1,4 @@
-import { VNode, createElement } from './renderer';
+import { VNode, createElement } from './renderer.js';
 
 interface CacheEntry {
   vnode: VNode;

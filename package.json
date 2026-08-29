@@ -1,6 +1,6 @@
 {
   "name": "veliom",
-  "version": "0.3.6",
+  "version": "0.3.8",
   "description": "Ultra-fast, minimal frontend framework with API-agnostic design",
   "type": "module",
   "sideEffects": false,
@@ -16,6 +16,7 @@
     "./package.json": "./package.json"
   },
   "files": [
+    "dist",
     "docs",
     "examples",
     "src",
@@ -32,14 +33,17 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc && tsc --project tsconfig.cjs.json && vite build",
+    "build": "tsc && tsc --project tsconfig.cjs.json && node -e \"require('fs').writeFileSync('dist/cjs/package.json', JSON.stringify({ type: 'commonjs' }))\" && vite build",
     "build:types": "tsc --emitDeclarationOnly",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src examples",
-    "prepublishOnly": "npm run typecheck && npm test && npm run lint && npm run build"
+    "smoke:esm": "node --input-type=module -e \"import('./dist/veliom.js').then(m => { if (typeof m.h !== 'function' || typeof m.renderToString !== 'function') { console.error('ESM smoke failed'); process.exit(1); } console.log('ESM smoke ok'); }).catch(e => { console.error(e); process.exit(1); })\"",
+    "smoke:cjs": "node -e \"const m = require('./dist/cjs/veliom.js'); if (typeof m.h !== 'function' || typeof m.renderToString !== 'function') { console.error('CJS smoke failed'); process.exit(1); } console.log('CJS smoke ok');\"",
+    "smoke": "npm run smoke:esm && npm run smoke:cjs",
+    "prepublishOnly": "npm run typecheck && npm test && npm run lint && npm run build && npm run smoke"
   },
   "keywords": [
     "frontend",

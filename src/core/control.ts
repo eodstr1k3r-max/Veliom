@@ -1,4 +1,4 @@
-import { VNode } from './renderer';
+import { VNode } from './renderer.js';
 
 export function Fragment(props: { children?: VNode[] }): VNode {
   return {
