@@ -21,7 +21,7 @@
 - **Minimal Core** — No bloat, just what you need
 - **API-Agnostic** — Use fetch, axios, GraphQL — your choice
 - **TypeScript Native** — Full type safety out of the box
-- **Security-Aware** — Built-in XSS protection (10 security fixes in v0.3.5, 1 more in v0.3.6)
+- **Security-Aware** — Built-in XSS protection (11 security fixes)
 - **Production Ready** — 349 tests, strict-mode clean
 
 ---
@@ -82,8 +82,8 @@ const doubled = createMemo(() => count.get() * 2);
 
 // Deep reactive store
 const deep = createDeepStore({ nested: { value: 1 } });
-deep.nested.value; // tracks automatically
-deep.subscribe((newVal) => console.log(newVal));
+deep.state.nested.value; // tracks automatically
+deep.subscribe(() => console.log('mutated'));
 
 // Media query
 const isLarge = createMediaQuery('(min-width: 768px)');
@@ -141,8 +141,8 @@ Switch({
   ]
 });
 
-// Lists with optional keys
-For({ each: items, key: 'id', children: (item) => h('li', null, item.name) });
+// Lists with optional key function
+For({ each: items, key: (item) => String(item.id), children: (item) => h('li', null, item.name) });
 
 // Index (index-based rendering)
 Index({ each: items, children: (item, idx) => h('li', null, `${idx}: ${item}`) });
@@ -155,9 +155,9 @@ const router = createRouter([
   { path: '/users/:id', component: UserProfile },
 ], { mode: 'hash' });
 
-// In JSX:
-h(Route, { path: '/', router, component: Home, fallback: NotFound });
-h(Link, { to: '/users/1', router }, h('span', null, 'User 1'));
+// Match a route / render a link (direct function calls)
+Route({ path: '/', router, component: Home, fallback: NotFound });
+Link({ to: '/users/1', router, children: h('span', null, 'User 1') });
 
 // Access router state
 const { path, params, navigate } = useRouter(router);
@@ -174,8 +174,11 @@ Suspense({ children: LazyComponent, fallback: h('div', null, 'Loading...') });
 // createAsync — general promise/sync-to-signal
 const { data, loading, error, refetch } = createAsync(() => fetch('/api/data').then(r => r.json()));
 
-// createResource — reactive data fetching
-const [resource, { mutate, refetch }] = createResource((id) => fetch(`/api/users/${id}`).then(r => r.json()), { initial: null });
+// createResource — reactive data fetching (with optional source signal)
+const users = createResource(() => fetch('/api/users').then(r => r.json()));
+users.loading();   // boolean
+users.refetch();   // re-run fetcher
+users.mutate(newData); // set data locally
 ```
 
 ### Await Component
@@ -185,21 +188,21 @@ Await({ promise: fetchUser(), loading: () => h('div', null, '...'), children: (u
 
 ### ErrorBoundary
 ```typescript
-ErrorBoundary({ fallback: () => h('div', null, 'Something went wrong'), children: () => h(MyComponent) });
+ErrorBoundary({ fallback: () => h('div', null, 'Something went wrong'), children: () => MyComponent({}) });
 ```
 
 ### Portal / Teleport
 ```typescript
 // Portal
-createPortal(h('div', null, 'Overlay'), document.getElementById('portal-root')!);
+createPortal({ children: h('div', null, 'Overlay'), target: document.getElementById('portal-root')! });
 
-// Teleport JSX
-h(Teleport, { to: '#portal-root' }, h('div', null, 'Teleported content'));
+// Teleport
+Teleport({ to: '#portal-root', children: h('div', null, 'Teleported content') });
 ```
 
 ### Dynamic Component
 ```typescript
-Dynamic({ component: isDiv ? 'div' : MyComponent, props: { class: 'dynamic' } });
+Dynamic({ component: isDiv ? 'div' : MyComponent, class: 'dynamic' });
 ```
 
 ### 🧩 Plugin System
@@ -224,7 +227,7 @@ Available hooks: `beforeCreate`, `created`, `beforeMount`, `mounted`, `beforeUpd
 import { KeepAlive, clearKeepAliveCache } from 'veliom';
 
 // Caches DOM + VNode by key on first render
-h(KeepAlive, { key: 'tab-1' }, h(TabContent));
+KeepAlive({ key: 'tab-1', children: TabContent({}) });
 
 // Clear single or all cache entries
 clearKeepAliveCache('tab-1');
@@ -235,8 +238,8 @@ clearKeepAliveCache(); // all
 ```typescript
 import { Transition, createTransitionClasses, leaveTransition } from 'veliom';
 
-// CSS class-based enter/leave
-h(Transition, { show: isVisible, name: 'fade' }, h('div', null, 'Content'));
+// CSS class-based enter (leave is manual via leaveTransition)
+Transition({ show: isVisible, name: 'fade', children: h('div', null, 'Content') });
 
 // Manual enter animation
 createTransitionClasses(el, 'fade', () => console.log('enter done'));
@@ -270,8 +273,8 @@ console.log(devtools.getState());
 ```typescript
 const Theme = createContext('light');
 
-// JSX Provider
-h(Theme.Provider, { value: 'dark' }, h(Child));
+// Provider (direct function call)
+Theme.Provider({ value: 'dark', children: Child({}) });
 
 // Consume
 const theme = useContext(Theme);
@@ -334,7 +337,7 @@ Children.count(children);            // Total child count
 ```typescript
 // onClickOutside — detect clicks outside an element
 onClickOutside(elementRef, () => console.log('clicked outside'));
-onClickOutside(elementRef, handler, { enabled: isOpen }); // conditional
+onClickOutside(elementRef, handler, isOpen); // conditional (boolean)
 ```
 
 ---
@@ -368,7 +371,6 @@ const DataComponent = createComponent(() => {
 | Event Delegation | O(n) instead of O(n×m) |
 | LIS Keyed Reconciliation | Minimal DOM moves (O(n log n)) |
 | RAF-Batched Updates | Single DOM write per frame |
-| VNode Pooling | Reduced GC pressure |
 
 ---
 
@@ -377,28 +379,36 @@ const DataComponent = createComponent(() => {
 ```
 src/
 ├── core/
-│   ├── renderer.ts      # Virtual DOM & rendering
-│   ├── component.ts     # Component system (mount/update/unmount, memo)
+│   ├── renderer.ts      # Virtual DOM & rendering (h, render, patch, createElement, removeVNode)
+│   ├── component.ts     # Component system (createComponent, mount, update, unmount, memo)
 │   ├── control.ts       # Show, For, Index, Switch, Match, Fragment
-│   ├── router.ts        # Hash/history router, Route, Link
-│   ├── error.ts         # ErrorBoundary, global error handler
+│   ├── router.ts        # Hash/history router, Route, Link, useRouter
+│   ├── error.ts         # ErrorBoundary, createErrorBoundary, global error handler
 │   ├── await.ts         # Await component (promise rendering)
 │   ├── dynamic.ts       # Dynamic component
-│   ├── portal.ts        # Portal rendering
-│   ├── teleport.ts      # Teleport JSX component
-│   ├── lazy.ts          # Lazy loading
-│   ├── suspense.ts      # Suspense component
-│   └── refs.ts          # Ref system
+│   ├── portal.ts        # createPortal rendering
+│   ├── teleport.ts      # Teleport component
+│   ├── lazy.ts          # lazy() + preload()
+│   ├── suspense.ts      # Suspense, createSuspense
+│   ├── refs.ts          # createRef, mergeRefs
+│   ├── keepAlive.ts     # KeepAlive, clearKeepAliveCache
+│   ├── plugin.ts        # Plugin system (8 lifecycle hooks)
+│   ├── scheduler.ts     # RAF-batched DOM updates (scheduleDOMUpdate/flushDOMUpdates)
+│   ├── ssr.ts           # renderToString, renderToStringWithData
+│   └── transition.ts    # Transition, createTransitionClasses, leaveTransition
 ├── state/
 │   ├── store.ts         # Signals, Store, DeepStore, Memo, Computed, batch
 │   ├── hooks.ts         # 25+ hooks (useState, useEffect, useForm, etc.)
-│   ├── async.ts         # createAsync primitive
+│   ├── async.ts         # createAsync, createFetcher
 │   ├── context.ts       # createContext, useContext, provideContext
 │   ├── resource.ts      # createResource data fetching
 │   └── lifecycle.ts     # onMount, onUpdate, onUnmount
 ├── utils/
 │   ├── children.ts      # Children.toArray, map, forEach, only, count
 │   ├── events.ts        # onClickOutside
+│   ├── lis.ts           # Longest increasing subsequence (keyed reconciliation)
+│   ├── sanitize.ts      # HTML sanitization (dangerouslySetInnerHTML)
+│   ├── devtools.ts      # enableDevTools/disableDevTools
 │   └── benchmark.ts     # Performance tools
 └── veliom.ts            # Main entry — re-exports all public API
 ```
