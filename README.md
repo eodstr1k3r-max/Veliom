@@ -27,7 +27,7 @@
 
 ---
 
-## ✨ What's New in v0.3.7
+## ✨ What's New in v0.3.8
 
 - **Fixed ESM & CJS builds** — extensionless imports broke `import` in native Node ESM; CJS files were treated as ESM under Node ≥ 22. Both are fixed and guarded by `npm run smoke` before every publish.
 - **Security fix** — `formAction` no longer accepts `javascript:`/`data:`/`vbscript:` URLs (CWE-79).
