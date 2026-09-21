@@ -41,7 +41,7 @@ const App = createComponent(() => {
         h('button', {
           onClick: () => {
             showLazy.update(v => !v);
-            if (!showLazy.get()) {
+            if (showLazy.get()) {
               preload(LazyLoadedComponent);
             }
           }
@@ -54,7 +54,7 @@ const App = createComponent(() => {
       ),
 
       Suspense({
-        children: LazyLoadedComponent as any,
+        children: LazyLoadedComponent,
         fallback: h('div', { className: 'suspense-fallback' },
           h('p', null, 'Click "Show Lazy Component" to load it')
         )
@@ -65,7 +65,7 @@ const App = createComponent(() => {
           h('hr', null),
           h('div', { className: 'status' },
             h('p', null, `Status: ${LazyLoadedComponent.loaded ? 'Loaded' : 'Not Loaded'}`),
-            LazyLoadedComponent.error && h('p', { className: 'error' }, `Error: ${LazyLoadedComponent.error.message}`)
+            LazyLoadedComponent.error ? h('p', { className: 'error' }, `Error: ${LazyLoadedComponent.error.message}`) : null
           )
         ]
       })

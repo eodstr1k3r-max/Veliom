@@ -23,11 +23,20 @@
 - **TypeScript Native** — Full type safety out of the box
 - **ESM & CJS** — Dual package with working `import` and `require` out of the box (verified in the build pipeline)
 - **Security-Aware** — Built-in XSS protection (11 security fixes)
-- **Production Ready** — 349 tests, strict-mode clean, zero runtime dependencies
+- **Production Ready** — 423 tests, strict-mode clean, zero runtime dependencies
 
 ---
 
-## ✨ What's New in v0.3.8
+## ✨ What's New in v0.3.9
+
+- **Callable components** — `createComponent`/`memo`/`lazy` results and `Context.Provider` are directly callable (`Counter({})`, `Modal({...})`), resolving inner render functions. The documented composition pattern actually works now; `.render()` stays raw for the mount/update pipeline.
+- **Security hardening** — SSR now filters `javascript:`/`data:`/`vbscript:` URLs like the DOM renderer; `sanitizeHtml` also strips `on*` handlers, dangerous URLs and embed elements; router rejects `//evil`, encoded bypasses and injection chars.
+- **Reactivity fixes** — `createComputed`/`createMemo` dispose stale tracking subscriptions; `createDeepStore` supports arrays and `delete`.
+- **Rendering fixes** — keyed reconciliation with inserts, portal patching into the right target, `style` normalization (camelCase/kebab/`--vars`), `memo` compares `children` and clones hits, pure `KeepAlive` (LRU 50), `useVirtualList` picks up late-mounted containers.
+- **Update fixes** — `update()` preserves hook state (slots replay from 0, no duplicated effects); portal events work via document-level delegation (modal buttons etc.); rAF-flush chains can't strand callbacks; unsafe `Link` targets blocked at render; `transitioncancel` listeners cleaned up; portal/fragment removal no longer crashes or leaks; `h()` flattens nested arrays; remount cleans up the previous instance; Teleport warns on missing targets; `useForm` stable with global regexes; observer/`createMediaQuery`/`benchmark` edge-case guards.
+- **Quality gates** — 423 tests (incl. `hardening` + `integration` + `examples` suites), `npm run size` budget (150 KB raw) in CI/release/publish, `docs/API.md` synced.
+
+## ✨ What's New in v0.3.7
 
 - **Fixed ESM & CJS builds** — extensionless imports broke `import` in native Node ESM; CJS files were treated as ESM under Node ≥ 22. Both are fixed and guarded by `npm run smoke` before every publish.
 - **Security fix** — `formAction` no longer accepts `javascript:`/`data:`/`vbscript:` URLs (CWE-79).
@@ -71,7 +80,7 @@ mount(App, document.getElementById('app')!);
 ### ⚡ High-Performance Rendering
 - Virtual DOM with efficient diffing & LIS-based keyed reconciliation (O(n log n) minimal DOM moves)
 - RAF-batched DOM update queue (`scheduleDOMUpdate` / `flushDOMUpdates`)
-- Event delegation — O(n) instead of O(n×m)
+- Event delegation at document level — O(n) instead of O(n×m), portal content included
 - Batched updates with `batch()`
 - Style object support, `classList` (string/array/object)
 - `dangerouslySetInnerHTML`, `ATTR_ALIAS` (htmlFor→for, className→class, etc.)
@@ -437,10 +446,12 @@ npm install veliom
 ```bash
 npm install
 npm run dev       # Start dev server
-npm run test      # Run tests (349)
+npm run test      # Run tests (423)
+npm run test:coverage # Tests with v8 coverage (thresholds enforced)
 npm run typecheck # TypeScript check (strict mode)
 npm run lint      # ESLint (0 warnings)
 npm run build     # Build for production
+npm run size      # Bundle budget: ESM JS ≤ 150 KB raw
 npm run smoke     # Verify built ESM + CJS output loads under Node
 ```
 

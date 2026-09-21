@@ -1,3 +1,5 @@
+import { trackSignal, isDevToolsEnabled } from '../utils/devtools.js';
+
 export type Listener<T> = (value: T) => void;
 
 export interface Signal<T> {
@@ -55,6 +57,7 @@ export function createSignal<T>(initialValue: T): Signal<T> {
   const set = (newValue: T): void => {
     if (Object.is(value, newValue)) return;
     value = newValue;
+    if (isDevToolsEnabled()) trackSignal('signal', value);
     if (batchDepth > 0) {
       for (const listener of listeners) {
         pendingEffects.add(listener as unknown as () => void);
@@ -165,12 +168,14 @@ export function createComputed<T>(
     }
     run();
   } else {
+    let dispose: (() => void) | null = null;
     const runner = () => {
+      if (dispose) dispose();
       pushTrackingEffect(runner);
       try {
         run();
       } finally {
-        popTrackingEffect();
+        dispose = popTrackingEffect();
       }
     };
     runner();
@@ -199,7 +204,7 @@ export function createDeepStore<T extends Record<string, unknown>>(initial: T): 
     get(target: Record<string, unknown>, prop: string | symbol) {
       const val = target[prop as string];
       versionSignal.get();
-      if (val && typeof val === 'object' && !Array.isArray(val)) {
+      if (val && typeof val === 'object') {
         if (proxyCache.has(val as object)) {
           return proxyCache.get(val as object);
         }
@@ -214,6 +219,15 @@ export function createDeepStore<T extends Record<string, unknown>>(initial: T): 
       version++;
       versionSignal.set(version);
       for (const fn of subs) fn();
+      return true;
+    },
+    deleteProperty(target: Record<string, unknown>, prop: string | symbol) {
+      if (prop in target) {
+        delete target[prop as string];
+        version++;
+        versionSignal.set(version);
+        for (const fn of subs) fn();
+      }
       return true;
     },
   };
@@ -250,7 +264,9 @@ export function combineSignals<T>(sources: Signal<unknown>[], compute: () => T):
 }
 
 export function createMediaQuery(query: string): Signal<boolean> & { dispose: () => void } {
-  const mql = typeof window !== 'undefined' ? window.matchMedia(query) : null;
+  const mql = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia(query)
+    : null;
   const signal = createSignal(mql?.matches ?? false) as Signal<boolean> & { dispose: () => void };
   if (mql) {
     const handler = (e: MediaQueryListEvent) => signal.set(e.matches);
@@ -276,12 +292,14 @@ export function createMemo<T>(compute: () => T): Memo<T> {
     }
   };
 
+  let dispose: (() => void) | null = null;
   const tracker = () => {
+    if (dispose) dispose();
     pushTrackingEffect(tracker);
     try {
       run();
     } finally {
-      popTrackingEffect();
+      dispose = popTrackingEffect();
     }
   };
   tracker();

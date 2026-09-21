@@ -4,6 +4,7 @@ import {
   createRef,
   mount,
   h,
+  VNode,
   Fragment,
   Show,
   For,
@@ -15,30 +16,29 @@ import {
 
 const store = createStore({ theme: 'dark', notifications: 3 });
 
-const Modal = createComponent((props: { isOpen: boolean; onClose: () => void; title: string; children: any }) => {
-  return () =>
-    Show({
-      when: props.isOpen,
-      children: () =>
-        createPortal({
-          children: h('div', { className: 'modal-overlay' },
-            h('div', { className: 'modal-content' },
-              h('div', { className: 'modal-header' },
-                h('h2', null, props.title),
-                h('button', { className: 'close-btn', onClick: props.onClose }, 'x')
-              ),
-              h('div', { className: 'modal-body' }, props.children)
-            )
-          ),
-          target: document.body
-        }),
-      fallback: { type: 'empty', props: {} }
-    });
+const Modal = createComponent((props: { isOpen: boolean; onClose: () => void; title: string; children?: VNode }) => {
+  return Show({
+    when: props.isOpen,
+    children: () =>
+      createPortal({
+        children: h('div', { className: 'modal-overlay' },
+          h('div', { className: 'modal-content' },
+            h('div', { className: 'modal-header' },
+              h('h2', null, props.title),
+              h('button', { className: 'close-btn', onClick: props.onClose }, 'x')
+            ),
+            h('div', { className: 'modal-body' }, props.children)
+          )
+        ),
+        target: document.body
+      }),
+    fallback: { type: 'empty', props: {} }
+  });
 });
 
 const NotificationBadge = createComponent(() => {
   const count = createSignal(0);
-  
+
   onMount(() => {
     const interval = setInterval(() => {
       count.update(n => n + 1);
@@ -46,17 +46,15 @@ const NotificationBadge = createComponent(() => {
     return () => clearInterval(interval);
   });
 
-  return () =>
-    Show({
-      when: count.get() > 0,
-      children: () =>
-        h('span', { className: 'badge' }, String(count.get())),
-      fallback: null
-    });
+  return Show({
+    when: count.get() > 0,
+    children: () =>
+      h('span', { className: 'badge' }, String(count.get()))
+  });
 });
 
 const ErrorDemo = createComponent(() => {
-  const [hasError, setHasError] = createSignal(false);
+  const hasError = createSignal(false);
   const error = createSignal<Error | null>(null);
 
   const triggerError = () => {
@@ -64,24 +62,23 @@ const ErrorDemo = createComponent(() => {
       throw new Error('This is a demo error!');
     } catch (e) {
       error.set(e as Error);
-      setHasError(true);
+      hasError.set(true);
     }
   };
 
-  return () =>
-    h('div', { className: 'error-demo' },
-      h('h3', null, 'Error Boundary Demo'),
-      Show({
-        when: !hasError.get(),
-        children: () =>
-          h('button', { className: 'error-btn', onClick: triggerError }, 'Trigger Error'),
-        fallback: () =>
-          h('div', { className: 'error-message' },
-            h('p', null, `Error: ${error.get()?.message}`),
-            h('button', { onClick: () => setHasError(false) }, 'Reset')
-          )
-      })
-    );
+  return h('div', { className: 'error-demo' },
+    h('h3', null, 'Error Boundary Demo'),
+    Show({
+      when: !hasError.get(),
+      children: () =>
+        h('button', { className: 'error-btn', onClick: triggerError }, 'Trigger Error'),
+      fallback:
+        h('div', { className: 'error-message' },
+          h('p', null, `Error: ${error.get()?.message}`),
+          h('button', { onClick: () => hasError.set(false) }, 'Reset')
+        )
+    })
+  );
 });
 
 const App = createComponent(() => {
@@ -104,10 +101,10 @@ const App = createComponent(() => {
     h('div', { className: 'app' },
       h('header', null,
         h('h1', null, 'Veliom Framework'),
-        h('span', { className: 'version' }, 'v0.3.7')
+        h('span', { className: 'version' }, 'v0.3.9')
       ),
 
-      Modal({
+      Modal.render({
         isOpen: showModal.get(),
         onClose: () => showModal.set(false),
         title: 'Welcome Modal',
@@ -166,7 +163,7 @@ const App = createComponent(() => {
         })
       ),
 
-      ErrorDemo(),
+      ErrorDemo.render({}),
 
       h('section', { className: 'store-section' },
         h('h2', null, 'Global Store'),
@@ -175,7 +172,7 @@ const App = createComponent(() => {
         h('button', {
           onClick: () => store.update('notifications', n => n + 1)
         }, 'Increment Notifications'),
-        NotificationBadge()
+        NotificationBadge.render({})
       ),
 
       h('section', { className: 'actions' },

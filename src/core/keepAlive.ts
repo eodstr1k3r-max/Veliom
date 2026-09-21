@@ -1,8 +1,8 @@
-import { VNode, createElement } from './renderer.js';
+import type { VNode } from './renderer.js';
 
 interface CacheEntry {
   vnode: VNode;
-  element: Element | Text | Node[];
+  element: Element | Text | Node[] | null;
 }
 
 const cache = new Map<string, CacheEntry>();
@@ -15,8 +15,12 @@ export function KeepAlive(props: {
 }): VNode {
   const cacheKey = props.key ?? `__keepalive_${++keyCounter.value}`;
 
-  if (cache.has(cacheKey)) {
-    return cache.get(cacheKey)!.vnode;
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    // Refresh LRU order on hit.
+    cache.delete(cacheKey);
+    cache.set(cacheKey, cached);
+    return cached.vnode;
   }
 
   if (cache.size >= MAX_CACHE_SIZE) {
@@ -24,13 +28,16 @@ export function KeepAlive(props: {
     if (oldestKey !== undefined) cache.delete(oldestKey);
   }
 
-  const el = createElement(props.children);
-  if (props.children) {
-    const result = Array.isArray(el) ? el : (el as Element | Text);
-    cache.set(cacheKey, { vnode: props.children, element: result });
-    props.children.ref = Array.isArray(result) ? (result[0] as Element) : (result as Element);
-  }
-  return props.children;
+  // Pure: no DOM side-effects here — the renderer inserts the returned VNode.
+  // Store a ref-free snapshot so later mutations of the live VNode (ref, etc.)
+  // don't corrupt the cache entry.
+  const snapshot: VNode = {
+    ...props.children,
+    props: { ...(props.children.props ?? {}) },
+    children: props.children.children ? [...props.children.children] : undefined,
+  };
+  cache.set(cacheKey, { vnode: snapshot, element: null });
+  return snapshot;
 }
 
 export function clearKeepAliveCache(key?: string): void {

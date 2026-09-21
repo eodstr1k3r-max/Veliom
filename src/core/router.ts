@@ -38,10 +38,22 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-const DANGEROUS_PATH_PATTERNS = /(?:javascript|data|vbscript):|<|>/i;
+const DANGEROUS_PATH_PATTERNS = /(?:javascript|data|vbscript):|<|>|["'`\s\\]/i;
 
-function isSafePath(path: string): boolean {
-  return !DANGEROUS_PATH_PATTERNS.test(path) && path.length < 2048;
+export function isSafePath(path: string): boolean {
+  if (typeof path !== 'string' || path.length === 0 || path.length >= 2048) return false;
+  const trimmed = path.trim();
+  // Only absolute app paths; block protocol-relative `//evil` and schemes.
+  if (!trimmed.startsWith('/') || trimmed.startsWith('//')) return false;
+  if (DANGEROUS_PATH_PATTERNS.test(trimmed)) return false;
+  // Block encoded scheme bypasses like %6Aavascript: or %3C.
+  try {
+    const decoded = decodeURIComponent(trimmed);
+    if (DANGEROUS_PATH_PATTERNS.test(decoded)) return false;
+  } catch {
+    return false;
+  }
+  return true;
 }
 
 export function createRouter(routes: RouteDefinition[], options: RouterOptions = {}): Router {
@@ -130,10 +142,17 @@ export function Link(props: {
   [key: string]: unknown;
 }): VNode {
   const { to, router, children, ...attrs } = props;
-  const href = router.resolve(to);
+  // Block unsafe targets at render time too: without this, middle-click /
+  // open-in-new-tab would follow the raw href even though clicks are gated
+  // by navigate().
+  const safe = isSafePath(to);
+  if (!safe) {
+    console.warn('Veliom: Blocked unsafe link target');
+  }
+  const href = safe ? router.resolve(to) : '#/';
   const clickHandler = (e: Event) => {
     e.preventDefault();
-    router.navigate(to);
+    if (safe) router.navigate(to);
   };
   const childArr = children ? (Array.isArray(children) ? children : [children]) : [];
   return h('a', { ...attrs, href, onClick: clickHandler }, ...childArr);

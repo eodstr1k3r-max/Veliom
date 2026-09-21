@@ -1,4 +1,4 @@
-import { Component, ComponentProps } from '../core/component.js';
+import { Component, ComponentProps, resolveRenderResult } from '../core/component.js';
 import { createSignal } from '../state/store.js';
 
 export interface LazyOptions {
@@ -21,7 +21,7 @@ export function lazy<P = ComponentProps>(
   let loadedModule: { default: Component<P> } | null = null;
   let loadPromise: Promise<{ default: Component<P> }> | null = null;
 
-  const component: LazyComponent<P> = {
+  const component = {
     load: () => {
       if (loadedModule) {
         return Promise.resolve(loadedModule);
@@ -84,7 +84,12 @@ export function lazy<P = ComponentProps>(
     },
   };
 
-  return component;
+  const callable = ((props: P) =>
+    resolveRenderResult(component.render(props))) as LazyComponent<P>;
+  // NB: assign descriptors (not values) so the `loaded`/`error` getters
+  // stay live on the callable.
+  Object.defineProperties(callable, Object.getOwnPropertyDescriptors(component));
+  return callable;
 }
 
 export function preload<P = ComponentProps>(

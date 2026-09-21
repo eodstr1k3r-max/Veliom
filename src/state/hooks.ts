@@ -346,6 +346,10 @@ export function useIntersectionObserver(
   const [get, set] = useState<IntersectionObserverEntry | null>(null);
   useEffect(() => {
     if (!target) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      console.warn('Veliom: IntersectionObserver is not available in this environment');
+      return;
+    }
     const observer = new IntersectionObserver(([entry]) => set(entry), options);
     observer.observe(target);
     return () => observer.disconnect();
@@ -359,6 +363,10 @@ export function useResizeObserver(
   const [get, set] = useState<DOMRectReadOnly | null>(null);
   useEffect(() => {
     if (!target) return;
+    if (typeof ResizeObserver === 'undefined') {
+      console.warn('Veliom: ResizeObserver is not available in this environment');
+      return;
+    }
     const observer = new ResizeObserver(([entry]) => {
       if (entry.contentRect) set(entry.contentRect);
     });
@@ -397,6 +405,7 @@ export function useClipboard(): {
 
 export function useDocumentTitle(title: string): void {
   useEffect(() => {
+    if (typeof document === 'undefined') return;
     const prev = document.title;
     document.title = title;
     return () => { document.title = prev; };
@@ -466,6 +475,7 @@ export function useWindowSize(): () => { width: number; height: number } {
 export function useKeyPress(targetKey: string): () => boolean {
   const [get, set] = useState(false);
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const down = (e: KeyboardEvent) => { if (e.key === targetKey) set(true); };
     const up = (e: KeyboardEvent) => { if (e.key === targetKey) set(false); };
     window.addEventListener('keydown', down);
@@ -564,7 +574,12 @@ export function useForm<T extends Record<string, unknown>>(options: {
     if (rules.required && (value === undefined || value === null || value === '')) return 'Required';
     if (rules.minLength && typeof value === 'string' && (value as string).length < rules.minLength) return `Min ${rules.minLength} chars`;
     if (rules.maxLength && typeof value === 'string' && (value as string).length > rules.maxLength) return `Max ${rules.maxLength} chars`;
-    if (rules.pattern && typeof value === 'string' && !rules.pattern.test(value as string)) return 'Invalid format';
+    if (rules.pattern && typeof value === 'string') {
+      // Global/sticky regexes are stateful (lastIndex) — reset so repeated
+      // validations don't alternate between pass and fail.
+      rules.pattern.lastIndex = 0;
+      if (!rules.pattern.test(value as string)) return 'Invalid format';
+    }
     if (rules.custom) return rules.custom(value);
     return null;
   };
@@ -665,13 +680,16 @@ export function useVirtualList<T>(options: {
   const [scrollTop, setScrollTop] = useState(0);
   const overscan = options.overscan ?? 5;
 
+  // No deps array: re-runs after every render (with cleanup), so a
+  // late-mounted container element gets its listener on the next render.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    setScrollTop(el.scrollTop);
     const onScroll = () => setScrollTop(el.scrollTop);
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
-  }, [containerRef.current]);
+  });
 
   const container = () => containerRef.current;
 

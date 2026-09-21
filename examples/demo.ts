@@ -1,4 +1,4 @@
-import { createComponent, createSignal, createRef, mount, h, Fragment, Show, For, mergeRefs } from '../src/veliom';
+import { createComponent, createSignal, createRef, mount, h, Fragment, Show, For } from '../src/veliom';
 
 const App = createComponent(() => {
   const count = createSignal(0);
@@ -34,7 +34,7 @@ const App = createComponent(() => {
           type: 'text',
           value: inputValue.get(),
           placeholder: 'Type something...',
-          ref: mergeRefs(inputRef),
+          ref: inputRef,
           onInput: (e: Event) => {
             const target = e.target as HTMLInputElement;
             inputValue.set(target.value);

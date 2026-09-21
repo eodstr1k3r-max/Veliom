@@ -52,50 +52,49 @@ const UserList = createComponent(() => {
     fetchUsers();
   };
 
-  return () =>
-    h('div', { className: 'user-list' },
-      h('div', { className: 'header' },
-        h('h2', null, 'Users from API'),
-        h('button', { onClick: refetch, disabled: state.get('loading') },
-          state.get('loading') ? 'Loading...' : 'Refetch'
-        )
-      ),
+  return h('div', { className: 'user-list' },
+    h('div', { className: 'header' },
+      h('h2', null, 'Users from API'),
+      h('button', { onClick: refetch, disabled: state.get('loading') },
+        state.get('loading') ? 'Loading...' : 'Refetch'
+      )
+    ),
 
-      Show({
-        when: !state.get('loading') && !state.get('error'),
-        children: () =>
-          Show({
-            when: state.get('data') !== null,
-            children: () =>
-              For({
-                each: state.get('data') || [],
-                children: (user: User) =>
-                  h('div', { key: String(user.id), className: 'user-card' },
-                    h('div', { className: 'avatar' }, user.name.charAt(0).toUpperCase()),
-                    h('div', { className: 'info' },
-                      h('h3', null, user.name),
-                      h('p', { className: 'email' }, user.email),
-                      h('span', { className: 'company' }, user.company.name)
-                    )
+    Show({
+      when: !state.get('loading') && !state.get('error'),
+      children: () =>
+        Show({
+          when: state.get('data') !== null,
+          children: () =>
+            For({
+              each: state.get('data') || [],
+              children: (user: User) =>
+                h('div', { key: String(user.id), className: 'user-card' },
+                  h('div', { className: 'avatar' }, user.name.charAt(0).toUpperCase()),
+                  h('div', { className: 'info' },
+                    h('h3', null, user.name),
+                    h('p', { className: 'email' }, user.email),
+                    h('span', { className: 'company' }, user.company.name)
                   )
-              }),
-            fallback: h('p', null, 'No data')
-          }),
-        fallback:
-          Show({
-            when: state.get('loading'),
-            children: () => h('div', { className: 'loading' }, 
-              h('div', { className: 'spinner' }),
-              h('p', null, 'Fetching users...')
-            ),
-            fallback: () =>
-              h('div', { className: 'error' },
-                h('p', null, `Error: ${state.get('error')}`),
-                h('button', { onClick: refetch }, 'Retry')
-              )
-          }) as any
-      })
-    );
+                )
+            }),
+          fallback: h('p', null, 'No data')
+        }),
+      fallback:
+        Show({
+          when: state.get('loading'),
+          children: () => h('div', { className: 'loading' },
+            h('div', { className: 'spinner' }),
+            h('p', null, 'Fetching users...')
+          ),
+          fallback:
+            h('div', { className: 'error' },
+              h('p', null, `Error: ${state.get('error')}`),
+              h('button', { onClick: refetch }, 'Retry')
+            )
+        })
+    })
+  );
 });
 
 const SearchExample = createComponent(() => {
@@ -131,36 +130,35 @@ const SearchExample = createComponent(() => {
     if (debounceTimer) clearTimeout(debounceTimer);
   });
 
-  return () =>
-    h('div', { className: 'search-example' },
-      h('h2', null, 'Search with Debounce'),
-      h('input', {
-        type: 'text',
-        placeholder: 'Search users...',
-        value: query.get(),
-        onInput: (e: Event) => {
-          const value = (e.target as HTMLInputElement).value;
-          query.set(value);
+  return h('div', { className: 'search-example' },
+    h('h2', null, 'Search with Debounce'),
+    h('input', {
+      type: 'text',
+      placeholder: 'Search users...',
+      value: query.get(),
+      onInput: (e: Event) => {
+        const value = (e.target as HTMLInputElement).value;
+        query.set(value);
 
-          if (debounceTimer) clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(() => search(value), 300);
-        }
-      }),
-      Show({
-        when: !searching.get(),
-        children: () =>
-          h('p', { className: 'count' }, `${results.get().length} results found`),
-        fallback: h('p', null, 'Searching...')
-      }),
-      For({
-        each: results.get(),
-        children: (user: User) =>
-          h('div', { key: String(user.id), className: 'result-item' },
-            h('strong', null, user.name),
-            h('span', null, ` - ${user.email}`)
-          )
-      })
-    );
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => search(value), 300);
+      }
+    }),
+    Show({
+      when: !searching.get(),
+      children: () =>
+        h('p', { className: 'count' }, `${results.get().length} results found`),
+      fallback: h('p', null, 'Searching...')
+    }),
+    For({
+      each: results.get(),
+      children: (user: User) =>
+        h('div', { key: String(user.id), className: 'result-item' },
+          h('strong', null, user.name),
+          h('span', null, ` - ${user.email}`)
+        )
+    })
+  );
 });
 
 const App = createComponent(() => {
@@ -186,8 +184,8 @@ const App = createComponent(() => {
 
       Show({
         when: selectedTab.get() === 'list',
-        children: () => UserList(),
-        fallback: SearchExample
+        children: () => UserList.render({}),
+        fallback: SearchExample.render({})
       })
     );
 });

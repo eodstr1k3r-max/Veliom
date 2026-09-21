@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Veliom v0.3.9 Router Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f1a; color: #eaeaea; min-height: 100vh; padding: 2rem;
+    }
+    .router-demo { max-width: 600px; margin: 0 auto; }
+    h1 { color: #00d9ff; font-size: 1.8rem; margin-bottom: 0.5rem; }
+    .tabs { display: flex; gap: 0.5rem; margin: 1.5rem 0; }
+    .tabs a {
+      padding: 0.6rem 1.2rem; border: 1px solid rgba(0,217,255,0.3);
+      background: #0f3460; color: #eaeaea; border-radius: 6px; cursor: pointer;
+      text-decoration: none; transition: all 0.2s;
+    }
+    .tabs a:hover { background: #1a4a7a; border-color: #00d9ff; }
+    .current { color: #888; font-size: 0.9rem; margin-bottom: 1rem; }
+    .page {
+      background: rgba(0,217,255,0.06); border: 1px solid rgba(0,217,255,0.2);
+      border-radius: 8px; padding: 1.5rem;
+    }
+    .page h2 { color: #00d9ff; margin-bottom: 0.5rem; }
+    .page p { color: #bbb; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="./router-demo.ts"></script>
+</body>
+</html>

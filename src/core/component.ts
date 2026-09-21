@@ -1,4 +1,5 @@
 import { h, VNode, render, patch, removeVNode } from './renderer.js';
+import { trackComponent, isDevToolsEnabled } from '../utils/devtools.js';
 import {
   pushComponentContext,
   popComponentContext,
@@ -24,6 +25,7 @@ export function resolveRenderResult(
 
 export interface Component<P = ComponentProps> {
   render: (props: P) => VNode;
+  (props: P): VNode;
 }
 
 export type ComponentInstance = {
@@ -38,7 +40,12 @@ export type ComponentInstance = {
 export function createComponent<P = ComponentProps>(
   renderFn: ComponentRender<P>
 ): Component<P> {
-  return { render: renderFn as (props: P) => VNode };
+  // Callable: `Counter({})` resolves (incl. inner render functions) and
+  // returns a VNode. `.render` stays raw for the mount/update pipeline.
+  const callable = ((props: P) =>
+    resolveRenderResult(renderFn(props))) as Component<P>;
+  callable.render = renderFn as (props: P) => VNode;
+  return callable;
 }
 
 const componentRoots = new WeakMap<Element, ComponentInstance>();
@@ -48,9 +55,17 @@ export function mount<P = ComponentProps>(
   container: Element,
   props: P = {} as P
 ): void {
-  const comp = typeof component === 'function'
+  // Already-created components (callable, have `.render`) are used as-is;
+  // only raw render functions get wrapped.
+  const comp = typeof component === 'function' && !('render' in component)
     ? createComponent(component as ComponentRender<P>)
-    : component;
+    : (component as Component<P>);
+
+  // Remounting over a live instance would leak its effects, lifecycle and
+  // delegation entries — clean up first.
+  if (componentRoots.has(container)) {
+    unmount(container);
+  }
 
   const context = pushComponentContext();
   const lifecycle = pushLifecycleContext();
@@ -74,6 +89,9 @@ export function mount<P = ComponentProps>(
   };
 
   componentRoots.set(container, instance);
+  if (isDevToolsEnabled()) {
+    trackComponent((comp as { name?: string }).name || 'Component', vnode);
+  }
   triggerOnMount(lifecycle);
 
   popLifecycleContext();
@@ -95,6 +113,11 @@ export function update<P = ComponentProps>(
 
   pushComponentContext(instance.context);
   pushLifecycleContext(instance.lifecycle);
+
+  // Replay hooks from slot 0 so useState/useRef/useMemo hit the same cache
+  // entries created at mount. Without this, every update() would allocate
+  // fresh hook state and duplicate effects.
+  instance.context.effectIndex = 0;
 
   let newVNode: VNode;
   try {
@@ -141,7 +164,6 @@ function shallowEqual(a: Record<string, unknown>, b: Record<string, unknown>): b
   if (keysA.length !== keysB.length) return false;
   for (let i = 0; i < keysA.length; i++) {
     const key = keysA[i];
-    if (key === 'children') continue;
     if (!Object.is(a[key], b[key])) return false;
   }
   return true;
@@ -154,15 +176,23 @@ export function memo<P = ComponentProps>(
   let lastVNode: VNode | null = null;
 
   const wrapped = (props: P) => {
-    if (lastProps !== null && lastVNode !== null && shallowEqual(lastProps as any, props as any)) {
-      return lastVNode;
+    if (lastProps !== null && lastVNode !== null && shallowEqual(lastProps as unknown as Record<string, unknown>, props as unknown as Record<string, unknown>)) {
+      // Return a shallow clone so repeated renders don't share `ref`/identity.
+      return {
+        ...lastVNode,
+        props: { ...lastVNode.props },
+        children: lastVNode.children ? [...lastVNode.children] : undefined,
+      };
     }
     lastProps = { ...props };
     lastVNode = resolveRenderResult(renderFn(props));
     return lastVNode;
   };
 
-  return { render: wrapped as (props: P) => VNode };
+  const callable = ((props: P) =>
+    resolveRenderResult(wrapped(props))) as Component<P>;
+  callable.render = wrapped as (props: P) => VNode;
+  return callable;
 }
 
 export { h };

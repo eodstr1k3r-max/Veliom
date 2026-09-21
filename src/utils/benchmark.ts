@@ -27,13 +27,15 @@ export function benchmark(
   options: BenchmarkOptions = {}
 ): BenchmarkResult {
   const opts = { ...defaultOptions, ...options };
+  const iterations = Math.max(1, Math.floor(opts.iterations));
+  const warmup = Math.max(0, Math.floor(opts.warmup));
   const times: number[] = [];
 
-  for (let i = 0; i < opts.warmup; i++) {
+  for (let i = 0; i < warmup; i++) {
     fn();
   }
 
-  for (let i = 0; i < opts.iterations; i++) {
+  for (let i = 0; i < iterations; i++) {
     const start = performance.now();
     fn();
     const end = performance.now();
@@ -41,14 +43,14 @@ export function benchmark(
   }
 
   const totalTime = times.reduce((a, b) => a + b, 0);
-  const avgTime = totalTime / opts.iterations;
+  const avgTime = totalTime / iterations;
   const minTime = Math.min(...times);
   const maxTime = Math.max(...times);
   const opsPerSecond = 1000 / avgTime;
 
   return {
     name,
-    iterations: opts.iterations,
+    iterations,
     totalTime,
     avgTime,
     minTime,
@@ -60,6 +62,7 @@ export function benchmark(
 export function compareBenchmarks(
   ...benchmarks: BenchmarkResult[]
 ): void {
+  if (benchmarks.length === 0) return;
   console.log('\n┌─────────────────────────────────────────────────────────────┐');
   console.log('│                     BENCHMARK RESULTS                       │');
   console.log('├──────────────┬──────────┬───────────┬───────────┬────────────┤');

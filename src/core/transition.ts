@@ -1,4 +1,4 @@
-import { VNode } from './renderer.js';
+import type { VNode } from './renderer.js';
 
 const TRANSITION_TIMEOUT = 500;
 
@@ -8,6 +8,16 @@ export interface TransitionProps {
   children: VNode;
 }
 
+function scheduleFrame(cb: () => void): void {
+  if (typeof requestAnimationFrame !== 'undefined') {
+    requestAnimationFrame(cb);
+  } else if (typeof queueMicrotask !== 'undefined') {
+    queueMicrotask(cb);
+  } else {
+    setTimeout(cb, 0);
+  }
+}
+
 function onTransitionEnd(el: HTMLElement, removeClasses: string[], onDone?: () => void): void {
   let done = false;
   const finish = () => {
@@ -15,6 +25,7 @@ function onTransitionEnd(el: HTMLElement, removeClasses: string[], onDone?: () =
     done = true;
     el.classList.remove(...removeClasses);
     el.removeEventListener('transitionend', finish);
+    el.removeEventListener('transitioncancel', finish);
     clearTimeout(fallbackTimer);
     onDone?.();
   };
@@ -36,7 +47,7 @@ export function Transition(props: TransitionProps): VNode {
   if (el) {
     const el2 = el as HTMLElement;
     el2.classList.add(`${baseClass}-enter-from`, `${baseClass}-enter-active`);
-    requestAnimationFrame(() => {
+    scheduleFrame(() => {
       el2.classList.remove(`${baseClass}-enter-from`);
       el2.classList.add(`${baseClass}-enter-to`);
       onTransitionEnd(el2, [`${baseClass}-enter-active`, `${baseClass}-enter-to`]);
@@ -46,7 +57,7 @@ export function Transition(props: TransitionProps): VNode {
       const el2 = children.ref as HTMLElement;
       if (el2) {
         el2.classList.add(`${baseClass}-enter-from`, `${baseClass}-enter-active`);
-        requestAnimationFrame(() => {
+        scheduleFrame(() => {
           el2.classList.remove(`${baseClass}-enter-from`);
           el2.classList.add(`${baseClass}-enter-to`);
           onTransitionEnd(el2, [`${baseClass}-enter-active`, `${baseClass}-enter-to`]);
@@ -64,7 +75,7 @@ export function createTransitionClasses(
   onDone?: () => void
 ): void {
   el.classList.add(`${baseClass}-enter-from`, `${baseClass}-enter-active`);
-  requestAnimationFrame(() => {
+  scheduleFrame(() => {
     el.classList.remove(`${baseClass}-enter-from`);
     el.classList.add(`${baseClass}-enter-to`);
     onTransitionEnd(el, [`${baseClass}-enter-active`, `${baseClass}-enter-to`], onDone);
@@ -77,7 +88,7 @@ export function leaveTransition(
   onDone?: () => void
 ): void {
   el.classList.add(`${baseClass}-leave-from`, `${baseClass}-leave-active`);
-  requestAnimationFrame(() => {
+  scheduleFrame(() => {
     el.classList.remove(`${baseClass}-leave-from`);
     el.classList.add(`${baseClass}-leave-to`);
     onTransitionEnd(el, [`${baseClass}-leave-active`, `${baseClass}-leave-to`], onDone);

@@ -1,4 +1,4 @@
-import { VNode } from './renderer.js';
+import type { VNode } from './renderer.js';
 
 export interface PluginHooks {
   beforeCreate?: (vnode: VNode) => void;
@@ -19,6 +19,10 @@ export interface Plugin {
 const plugins: Plugin[] = [];
 
 export function usePlugin(plugin: Plugin): void {
+  if (plugins.some((p) => p === plugin || p.name === plugin.name)) {
+    console.warn(`Veliom: plugin "${plugin.name}" already registered — skipping`);
+    return;
+  }
   plugins.push(plugin);
 }
 

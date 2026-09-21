@@ -1,6 +1,6 @@
 # Veliom - API Reference
 
-> Updated for **v0.3.7** (2026-08-29).
+> Updated for **v0.3.9** (2026-09-21).
 
 ## Table of Contents
 
@@ -45,6 +45,8 @@ h('div', { dangerouslySetInnerHTML: { __html: '<b>bold</b>' } });
 
 Attribute aliases: `htmlFor`→`for`, `className`→`class`, `classList`→`class`, `readOnly`→`readonly`, `autoFocus`→`autofocus`, `autoPlay`→`autoplay`, `tabIndex`→`tabindex`, `colSpan`→`colspan`, `rowSpan`→`rowspan`, `encType`→`enctype`, `formAction`→`formaction`, `httpEquiv`→`http-equiv`, `acceptCharset`→`accept-charset`.
 
+Style objects accept camelCase (`fontSize`), kebab-case (`font-size`) and custom properties (`--brand`); `null`/`undefined`/`false` values remove the property. `null`, `undefined` and `''` children are dropped; nested arrays are flattened. `0` is kept as a text node. URL attributes (`href`, `src`, `action`, `formaction`, `xlink:href`) with `javascript:`/`data:`/`vbscript:` protocols are blocked (DOM + SSR). `dangerouslySetInnerHTML` content is sanitized (script tags, `on*` handlers, dangerous URLs, embed elements stripped).
+
 ### `render(vnode, container)`
 
 Renders a VNode to a DOM container.
@@ -84,6 +86,8 @@ const el = createElement(h('div', null, 'Hello')); // HTMLElement
 
 Creates a component. The factory runs once; the inner render function runs on every update.
 
+Components are callable: `Counter({})` renders to a VNode (inner functions resolved), so they compose by direct call. `.render(props)` stays available for the mount/update pipeline.
+
 ```typescript
 import { createComponent, createSignal, h } from 'veliom';
 
@@ -94,11 +98,14 @@ const Counter = createComponent(() => {
     h('button', { onClick: () => count.update(n => n + 1) }, '+')
   );
 });
+
+// Compose by direct call (also works for memo/lazy components):
+h('div', null, Counter({}));
 ```
 
 ### `mount(component, container, props?)`
 
-Mounts a component.
+Mounts a component. Accepts a created component (callable or not) or a raw render function. Mounting over a live instance unmounts it first (effects, lifecycle, delegation entries cleaned up).
 
 ```typescript
 mount(Counter, document.getElementById('app')!);
@@ -107,7 +114,7 @@ mount(Counter, container, { initialCount: 5 });
 
 ### `update(container, newProps)`
 
-Updates component props.
+Updates component props. Hook slots replay from 0, so `useState`/`useRef`/`useMemo`/`useEffect` keep their mount-time cache entries — state survives updates and effects don't duplicate.
 
 ```typescript
 update(container, { newProp: 'value' });
@@ -123,7 +130,7 @@ unmount(container);
 
 ### `memo(component)`
 
-Creates a memoized component with shallow prop comparison.
+Creates a memoized component with shallow prop comparison (including `children` — different child identity re-renders). Cache hits return a ref-free clone, so repeated renders never share DOM identity. Like `createComponent`, the result is directly callable (`Expensive({ data })`).
 
 ```typescript
 const Expensive = memo((props) => {
@@ -172,7 +179,7 @@ Await({
 
 ### `Teleport`
 
-Renders children to a different DOM target.
+Renders children to a different DOM target. An unmatched string selector renders empty with a console warning (no silent body fallback). Removing a teleported tree cleans the target; the target element itself is never removed.
 
 ```typescript
 import { Teleport, h } from 'veliom';
@@ -265,7 +272,7 @@ interface Plugin {
 
 ### `KeepAlive`
 
-Caches a component's VNode + DOM element by key. On re-mount, restores the cached instance instead of creating a new one.
+Pure (no DOM side-effects): caches a VNode snapshot by key and returns it on re-render. LRU-bounded to 50 entries; cache hits refresh recency.
 
 ```typescript
 import { KeepAlive, h } from 'veliom';
@@ -399,6 +406,8 @@ const router = createRouter([
 
 Returns `{ currentPath, params, navigate, resolve, dispose }`.
 
+`navigate(path)` only accepts absolute app paths: must start with a single `/`, may contain query strings (`/search?q=a+b`) and `@`/`+`/`-`, but rejects `javascript:`/`data:`/`vbscript:` (incl. percent-encoded bypasses), protocol-relative `//evil`, and `<>"'`/whitespace/backslashes with a console warning.
+
 ### `Route`
 
 Matches a path and renders the component.
@@ -410,7 +419,7 @@ Route({ path: '/users/:id', router, component: UserProfile, fallback: NotFound }
 
 ### `Link`
 
-Navigation link (prevents default, uses router navigate).
+Navigation link (prevents default, uses router navigate). Unsafe `to` targets are blocked at render time (warning, `href="#/"`, click is a no-op) — not just on click.
 
 ```typescript
 Link({ to: '/home', router, children: h('span', null, 'Home') });
@@ -423,6 +432,10 @@ Access current route state.
 ```typescript
 const { path, params, navigate } = useRouter(router);
 ```
+
+### `isSafePath(path)`
+
+Validates a navigation target (absolute `/` path, no protocols/protocol-relative URLs, no injection chars). Used by `navigate` and `Link`; exported for user-side validation.
 
 ---
 
@@ -456,7 +469,7 @@ store.getState();            // { name: 'Veliom', count: 11 }
 
 ### `createDeepStore(initialState)`
 
-Proxy-based deep reactive store.
+Proxy-based deep reactive store. Nested objects **and arrays** are proxied; mutations (`obj.key = v`, `arr.push(v)`, `delete obj.key`) bump an O(1) version counter and notify subscribers.
 
 ```typescript
 const store = createDeepStore({ users: [{ name: 'Alice' }] });
@@ -467,7 +480,7 @@ store.state.users.push({ name: 'Bob' }); // triggers subscriber
 
 ### `createComputed(compute, deps?)`
 
-Computed value (auto-tracking if no deps provided).
+Computed value (auto-tracking if no deps provided). Auto-tracking subscriptions are disposed before each re-track, so conditionally-read signals don't leak stale subscriptions.
 
 ```typescript
 const fullName = createComputed(() => `${firstName.get()} ${lastName.get()}`);
@@ -476,7 +489,7 @@ fullName.get();  // computed on demand
 
 ### `createMemo(compute)`
 
-Auto-tracking memoized computation (eager, cached).
+Auto-tracking memoized computation (eager, cached). Only notifies when the value actually changes (`Object.is`); stale tracking subscriptions are disposed like `createComputed`.
 
 ```typescript
 const doubled = createMemo(() => count.get() * 2);
@@ -781,6 +794,8 @@ totalHeight();  // total scroll height
 scrollTo(500);  // scroll to item index
 ```
 
+The scroll listener re-attaches after every render, so late-mounted container elements are picked up automatically.
+
 ### `createEffect(fn)` / `createEffect(signal, callback)`
 
 ```typescript
@@ -914,9 +929,13 @@ preload(LazyComponent);
 
 Preloads a lazy component.
 
-### `setPortalContainer(selector)`
+### `setPortalContainer(container)`
 
-Sets the default portal container.
+Sets the default portal container used when `createPortal` is called without an explicit `target`.
+
+```typescript
+setPortalContainer(document.getElementById('portal-root')!);
+```
 
 ---
 
@@ -1009,7 +1028,7 @@ Runs predefined performance tests.
 
 ### `renderToString(vnode)`
 
-Converts a VNode tree to an HTML string. Supports fragments, portals (renders all children), text nodes, void elements, `style` objects (serialized to CSS text) and `classList` (array/object).
+Converts a VNode tree to an HTML string. Supports fragments, portals (renders all children), text nodes, void elements, `style` objects (serialized to CSS text) and `classList` (array/object). Dangerous URL protocols (`javascript:`/`data:`/`vbscript:`) in `href`/`src`/`action` are omitted, matching the DOM renderer.
 
 ```typescript
 import { renderToString, h } from 'veliom';

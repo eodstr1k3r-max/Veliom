@@ -5,28 +5,33 @@ export interface Context<T> {
   defaultValue: T;
   Provider: {
     render: (props: { value: T; children?: any }) => any;
+    (props: { value: T; children?: any }): any;
   };
 }
 
 export function createContext<T>(defaultValue: T): Context<T> {
   const id = Symbol('context');
 
+  const render = (props: { value: T; children?: any }) => {
+    const ctx = getCurrentContext();
+    if (ctx) {
+      if (!ctx.contextCache) ctx.contextCache = new Map();
+      ctx.contextCache.set(id, props.value);
+    }
+    const children = Array.isArray(props.children)
+      ? { type: 'fragment', props: {}, children: props.children }
+      : props.children || { type: 'empty', props: {} };
+    return children;
+  };
+
+  const Provider = ((props: { value: T; children?: any }) =>
+    render(props)) as Context<T>['Provider'];
+  Provider.render = render;
+
   return {
     id,
     defaultValue,
-    Provider: {
-      render: (props: { value: T; children?: any }) => {
-        const ctx = getCurrentContext();
-        if (ctx) {
-          if (!ctx.contextCache) ctx.contextCache = new Map();
-          ctx.contextCache.set(id, props.value);
-        }
-        const children = Array.isArray(props.children)
-          ? { type: 'fragment', props: {}, children: props.children }
-          : props.children || { type: 'empty', props: {} };
-        return children;
-      },
-    },
+    Provider,
   };
 }
 
@@ -43,8 +48,10 @@ export function useContext<T>(context: Context<T>): T {
 
 export function provideContext<T>(context: Context<T>, value: T): void {
   const ctx = getCurrentContext();
-  if (ctx) {
-    if (!ctx.contextCache) ctx.contextCache = new Map();
-    ctx.contextCache.set(context.id, value);
+  if (!ctx) {
+    console.warn('Veliom: provideContext called outside a component — no-op');
+    return;
   }
+  if (!ctx.contextCache) ctx.contextCache = new Map();
+  ctx.contextCache.set(context.id, value);
 }

@@ -1,10 +1,13 @@
 import { VNode } from './renderer.js';
 
-export function Fragment(props: { children?: VNode[] }): VNode {
+export function Fragment(props: { children?: VNode[] | VNode }): VNode {
+  const children = props.children
+    ? (Array.isArray(props.children) ? props.children : [props.children])
+    : undefined;
   return {
     type: 'fragment',
     props: {},
-    children: props.children,
+    children,
   };
 }
 

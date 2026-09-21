@@ -41,7 +41,9 @@ export function createSuspense(fallback: VNode): {
       return Suspense({ ...props, fallback });
     },
     preload: (component: LazyComponent) => {
-      component.load();
+      component.load().catch((err) => {
+        console.warn('Veliom: Lazy component failed to load', err);
+      });
     },
   };
 }

@@ -4,6 +4,7 @@ export function onClickOutside(
   enabled: boolean = true
 ): () => void {
   if (!enabled || !element) return () => {};
+  if (typeof document === 'undefined') return () => {};
 
   const handler = (e: Event) => {
     if (!element.contains(e.target as Node)) {

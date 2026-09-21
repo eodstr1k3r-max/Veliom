@@ -24,7 +24,7 @@ usePlugin({
 
 const TabA = createComponent(() => {
   const count = createSignal(0);
-  return () => h('div', { style: 'padding:1rem;background:rgba(0,217,255,0.1);border-radius:8px;' },
+  return h('div', { style: 'padding:1rem;background:rgba(0,217,255,0.1);border-radius:8px;' },
     h('h3', null, 'Tab A — Counter'),
     h('p', null, String(count.get())),
     h('button', { onClick: () => count.update(n => n + 1) }, 'Increment'),
@@ -35,7 +35,7 @@ const TabA = createComponent(() => {
 
 const TabB = createComponent(() => {
   const text = createSignal('');
-  return () => h('div', { style: 'padding:1rem;background:rgba(0,255,136,0.1);border-radius:8px;' },
+  return h('div', { style: 'padding:1rem;background:rgba(0,255,136,0.1);border-radius:8px;' },
     h('h3', null, 'Tab B — Input'),
     h('input', {
       type: 'text',
@@ -49,7 +49,7 @@ const TabB = createComponent(() => {
 
 const KeepAliveDemo = createComponent(() => {
   const tab = createSignal('a');
-  return () => h('div', null,
+  return h('div', null,
     h('h3', null, 'KeepAlive Tabs'),
     h('div', { style: 'display:flex;gap:0.5rem;margin-bottom:1rem;' },
       h('button', {
@@ -63,15 +63,15 @@ const KeepAliveDemo = createComponent(() => {
     ),
     Show({
       when: tab.get() === 'a',
-      children: () => KeepAlive({ key: 'tab-a', children: TabA({}) }),
-      fallback: () => KeepAlive({ key: 'tab-b', children: TabB({}) }),
+      children: () => KeepAlive({ key: 'tab-a', children: TabA.render({}) }),
+      fallback: KeepAlive({ key: 'tab-b', children: TabB.render({}) }),
     }),
   );
 });
 
 const TransitionDemo = createComponent(() => {
   const show = createSignal(true);
-  return () => h('div', null,
+  return h('div', null,
     h('h3', null, 'Transition (fade)'),
     h('button', { onClick: () => show.update(v => !v) },
       show.get() ? 'Hide' : 'Show'),
@@ -94,7 +94,7 @@ const VirtualListDemo = createComponent(() => {
     containerRef,
   });
 
-  return () => h('div', null,
+  return h('div', null,
     h('h3', null, 'Virtual List (10,000 items)'),
     h('div', { style: 'display:flex;gap:0.5rem;margin-bottom:0.5rem;' },
       h('button', { onClick: () => scrollTo(0) }, 'Top'),
@@ -105,7 +105,7 @@ const VirtualListDemo = createComponent(() => {
       style: 'height:300px;overflow-y:auto;border:1px solid rgba(255,255,255,0.1);border-radius:8px;'
     },
       h('div', { style: `height:${totalHeight()}px;position:relative;` },
-        visibleItems().map(item =>
+        ...visibleItems().map(item =>
           h('div', {
             key: String(item.index),
             style: `position:absolute;top:${item.offsetY}px;height:36px;left:0;right:0;
@@ -123,7 +123,10 @@ const VirtualListDemo = createComponent(() => {
 const DevToolsDemo = createComponent(() => {
   const info = createSignal<string>('');
   onMount(() => {
-    const dt = window.__VELIOM_DEVTOOLS__;
+    const w = window as unknown as {
+      __VELIOM_DEVTOOLS__?: { getState: () => { components: unknown[]; signals: unknown[] } };
+    };
+    const dt = w.__VELIOM_DEVTOOLS__;
     if (dt) {
       const s = dt.getState();
       info.set(`Components: ${s.components.length}, Signals: ${s.signals.length}`);
@@ -131,7 +134,7 @@ const DevToolsDemo = createComponent(() => {
       info.set('__VELIOM_DEVTOOLS__ not available');
     }
   });
-  return () => h('div', null,
+  return h('div', null,
     h('h3', null, 'DevTools Hook'),
     h('p', { style: 'color:#00d9ff;font-size:0.9rem;' }, info.get())
   );
@@ -139,14 +142,14 @@ const DevToolsDemo = createComponent(() => {
 
 const App = createComponent(() => {
   return () => h('div', { style: 'font-family:-apple-system,sans-serif;max-width:600px;margin:2rem auto;padding:2rem;color:#eaeaea;' },
-    h('h1', { style: 'color:#00d9ff;' }, 'Veliom v0.3.7 Features'),
+    h('h1', { style: 'color:#00d9ff;' }, 'Veliom v0.3.9 Features'),
     h('p', { style: 'color:#888;margin-bottom:2rem;' },
       'Plugin System · KeepAlive · Transition · useVirtualList · DevTools'),
 
-    h('section', { style: 'margin-bottom:2rem;' }, KeepAliveDemo({})),
-    h('section', { style: 'margin-bottom:2rem;' }, TransitionDemo({})),
-    h('section', { style: 'margin-bottom:2rem;' }, VirtualListDemo({})),
-    h('section', { style: 'margin-bottom:2rem;' }, DevToolsDemo({})),
+    h('section', { style: 'margin-bottom:2rem;' }, KeepAliveDemo.render({})),
+    h('section', { style: 'margin-bottom:2rem;' }, TransitionDemo.render({})),
+    h('section', { style: 'margin-bottom:2rem;' }, VirtualListDemo.render({})),
+    h('section', { style: 'margin-bottom:2rem;' }, DevToolsDemo.render({})),
   );
 });
 

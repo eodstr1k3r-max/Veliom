@@ -46,6 +46,19 @@ function serializeValue(key: string, val: unknown): string {
   return String(val);
 }
 
+const DANGEROUS_ATTRS_SSR = ['href', 'src', 'action', 'formaction', 'xlink:href'];
+const DANGEROUS_PROTOCOLS_SSR = ['javascript:', 'data:', 'vbscript:'];
+
+function isSafeAttributeSSR(key: string, value: unknown): boolean {
+  if (DANGEROUS_ATTRS_SSR.includes(key.toLowerCase())) {
+    const strValue = String(value).toLowerCase().trim();
+    for (const protocol of DANGEROUS_PROTOCOLS_SSR) {
+      if (strValue.startsWith(protocol)) return false;
+    }
+  }
+  return true;
+}
+
 function attrsToString(props: Record<string, unknown>): string {
   let out = '';
   const keys = Object.keys(props);
@@ -56,6 +69,7 @@ function attrsToString(props: Record<string, unknown>): string {
     const val = props[key];
     if (val === false || val === null || val === undefined) continue;
     const attrName = ATTR_SSR[key] ?? key;
+    if (!isSafeAttributeSSR(attrName, val)) continue;
     if (val === true) {
       out += ` ${attrName}`;
     } else {

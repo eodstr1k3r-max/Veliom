@@ -64,9 +64,6 @@ export {
   onMount,
   onUpdate,
   onUnmount,
-  registerLifecycle,
-  unregisterLifecycle,
-  getLifecycle,
 } from './state/lifecycle.js';
 export {
   createContext,
@@ -155,6 +152,7 @@ export {
   Route,
   Link,
   useRouter,
+  isSafePath,
   Router,
   RouteDefinition,
   RouterOptions,

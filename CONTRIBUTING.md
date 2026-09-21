@@ -37,8 +37,11 @@ npm run dev
 | `npm run build:types` | Generate TypeScript declarations |
 | `npm test` | Run tests |
 | `npm run test:watch` | Run tests in watch mode |
+| `npm run test:coverage` | Run tests with v8 coverage (thresholds enforced) |
 | `npm run typecheck` | TypeScript type checking |
-| `npm run lint` | Run ESLint |
+| `npm run lint` | Run ESLint (src, examples, tests) |
+| `npm run size` | Bundle budget check (ESM JS ≤ 150 KB raw) |
+| `npm run smoke` | Verify built ESM + CJS output loads under Node |
 
 ---
 
@@ -77,9 +80,8 @@ src/
 │   ├── devtools.ts          # DevTools integration (enableDevTools/disableDevTools)
 │   ├── events.ts            # onClickOutside
 │   ├── lis.ts               # Longest Increasing Subsequence (keyed DOM reconciliation)
-│   └── sanitize.ts          # HTML sanitization (script tag stripping)
+│   └── sanitize.ts          # HTML sanitization (script tags, event handlers, dangerous URLs, embeds)
 ├── veliom.ts               # Barrel exports
-└── veliom.d.ts             # Full type declarations
 ```
 
 ---
@@ -131,7 +133,7 @@ npm test
 npm run test:watch
 
 # Run specific test file
-npm test --run tests/store.test.ts
+npx vitest run tests/store.test.ts
 ```
 
 ### Writing Tests
@@ -155,10 +157,10 @@ describe('createSignal', () => {
 
 ### Test Coverage
 
-We aim for high test coverage. Run coverage with:
+We enforce coverage thresholds (v8 provider, `src/**/*.ts`): 85% lines/statements, 78% branches, 74% functions — see `vitest.config.ts`. Run coverage with:
 
 ```bash
-npm test --coverage
+npm run test:coverage
 ```
 
 ---
@@ -169,8 +171,10 @@ npm test --coverage
 
 1. **Run tests**: `npm test`
 2. **Type check**: `npm run typecheck`
-3. **Build**: `npm run build`
-4. **Update CHANGELOG.md** (if needed)
+3. **Lint**: `npm run lint`
+4. **Build**: `npm run build`
+5. **Smoke**: `npm run smoke`
+6. **Update CHANGELOG.md** (if needed)
 
 ### PR Guidelines
 

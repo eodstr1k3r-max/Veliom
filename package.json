@@ -1,6 +1,6 @@
 {
   "name": "veliom",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "description": "Ultra-fast, minimal frontend framework with API-agnostic design",
   "type": "module",
   "sideEffects": false,
@@ -38,12 +38,14 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src examples",
+    "lint": "eslint src examples tests",
     "smoke:esm": "node --input-type=module -e \"import('./dist/veliom.js').then(m => { if (typeof m.h !== 'function' || typeof m.renderToString !== 'function') { console.error('ESM smoke failed'); process.exit(1); } console.log('ESM smoke ok'); }).catch(e => { console.error(e); process.exit(1); })\"",
     "smoke:cjs": "node -e \"const m = require('./dist/cjs/veliom.js'); if (typeof m.h !== 'function' || typeof m.renderToString !== 'function') { console.error('CJS smoke failed'); process.exit(1); } console.log('CJS smoke ok');\"",
     "smoke": "npm run smoke:esm && npm run smoke:cjs",
-    "prepublishOnly": "npm run typecheck && npm test && npm run lint && npm run build && npm run smoke"
+    "size": "node -e \"const fs=require('fs'),path=require('path'),zlib=require('zlib');let raw=0,gz=0;for(const r of ['dist','dist/core','dist/state','dist/utils']){for(const f of fs.readdirSync(r)){if(!f.endsWith('.js'))continue;const b=fs.readFileSync(path.join(r,f));raw+=b.length;gz+=zlib.gzipSync(b).length;}}console.log('ESM JS: '+(raw/1024).toFixed(1)+' KB raw / '+(gz/1024).toFixed(1)+' KB gzip (budget 150 KB raw)');if(raw>150*1024){console.error('Size budget exceeded');process.exit(1);}\"",
+    "prepublishOnly": "npm run typecheck && npm test && npm run lint && npm run build && npm run size && npm run smoke"
   },
   "keywords": [
     "frontend",
@@ -66,6 +68,7 @@
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.60.0",
     "@typescript-eslint/parser": "^8.60.0",
+    "@vitest/coverage-v8": "^1.6.1",
     "@vitest/ui": "^1.0.0",
     "eslint": "^10.4.0",
     "jsdom": "^23.0.0",

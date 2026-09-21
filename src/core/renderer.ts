@@ -25,20 +25,30 @@ export function h(
   props: Record<string, unknown> | null = {},
   ...children: (VNode | string | number | null | undefined)[]
 ): VNode {
+  // Note: `null`, `undefined` and `''` children are dropped; `false` is not
+  // part of the child type. `0` is kept as a text node.
   const vnode: VNode = { type: '', props: {} };
   vnode.type = type;
   vnode.props = props || {};
   vnode.key = (props?.key as string) ?? undefined;
 
   const flatChildren: VNode[] = [];
-  for (let i = 0; i < children.length; i++) {
-    const c = children[i];
-    if (c === null || c === undefined || c === '') continue;
+  const pushChild = (c: VNode | string | number | null | undefined | unknown): void => {
+    if (c === null || c === undefined || c === '') return;
+    // React-style: nested arrays (e.g. `items.map(...)` without spread) are
+    // flattened instead of becoming corrupt `<undefined>` elements.
+    if (Array.isArray(c)) {
+      for (let j = 0; j < c.length; j++) pushChild(c[j]);
+      return;
+    }
     if (typeof c === 'string' || typeof c === 'number') {
       flatChildren.push({ type: 'text', props: { value: c } });
     } else if (typeof c === 'object' && c !== null) {
-      flatChildren.push(c);
+      flatChildren.push(c as VNode);
     }
+  };
+  for (let i = 0; i < children.length; i++) {
+    pushChild(children[i]);
   }
   if (flatChildren.length > 0) {
     vnode.children = flatChildren;
@@ -49,56 +59,65 @@ export function h(
 
 let eventContainer: Element | null = null;
 const eventMap = new Map<string, Map<Element, EventListener>>();
-const containerListeners = new Map<string, { container: Element; handler: EventListener }>();
+const containerListeners = new Map<string, { root: Element | Document; handler: EventListener }>();
+
+// Delegation root: document when available so portal content (mounted outside
+// the render container) receives events too; falls back to the container
+// (e.g. non-DOM runtimes exposing Elements without a document).
+function getDelegationRoot(): Element | Document | null {
+  if (typeof document !== 'undefined') return document;
+  return eventContainer;
+}
+
+function clearDelegation(): void {
+  for (const [eventName, entry] of containerListeners) {
+    entry.root.removeEventListener(eventName, entry.handler);
+  }
+  containerListeners.clear();
+  eventMap.clear();
+}
 
 export function setEventContainer(container: Element): void {
   if (eventContainer && eventContainer !== container) {
-    for (const [eventName, entry] of containerListeners) {
-      if (entry.container === eventContainer) {
-        eventContainer.removeEventListener(eventName, entry.handler);
-      }
-    }
-    containerListeners.clear();
-    eventMap.clear();
+    clearDelegation();
   }
   eventContainer = container;
 }
 
+function ensureDelegatedListener(eventName: string): void {
+  if (containerListeners.has(eventName)) return;
+  const root = getDelegationRoot();
+  if (!root) return;
+  const eventHandler = (e: Event) => {
+    let node: Element | null = e.target as Element;
+    while (node) {
+      const elHandler = eventMap.get(e.type)?.get(node);
+      if (elHandler) elHandler(e);
+      node = node.parentElement;
+    }
+  };
+  root.addEventListener(eventName, eventHandler);
+  containerListeners.set(eventName, { root, handler: eventHandler });
+}
+
 function attachEvent(element: Element, key: string, handler: unknown): void {
-  if (!eventContainer || typeof handler !== 'function') return;
+  if (typeof handler !== 'function') return;
+  if (typeof document === 'undefined' && !eventContainer) return;
 
   if (key.startsWith('on')) {
     const eventName = key.slice(2).toLowerCase();
-    const listener = handler as EventListener;
-
     if (!eventMap.has(eventName)) {
       eventMap.set(eventName, new Map());
-      const eventHandler = (e: Event) => {
-        if (!eventContainer) return;
-        let node: Element | null = e.target as Element;
-        while (node && node !== eventContainer) {
-          const handlerMap = eventMap.get(e.type);
-          if (handlerMap) {
-            const elHandler = handlerMap.get(node);
-            if (elHandler) {
-              elHandler(e);
-            }
-          }
-          node = node.parentElement;
-        }
-      };
-      eventContainer.addEventListener(eventName, eventHandler);
-      containerListeners.set(eventName, { container: eventContainer, handler: eventHandler });
     }
-
-    eventMap.get(eventName)!.set(element, listener);
+    ensureDelegatedListener(eventName);
+    eventMap.get(eventName)!.set(element, handler as EventListener);
   }
 }
 
-function removeContainerListener(eventName: string): void {
+function removeDelegatedListener(eventName: string): void {
   const entry = containerListeners.get(eventName);
-  if (entry && entry.container === eventContainer) {
-    eventContainer!.removeEventListener(eventName, entry.handler);
+  if (entry) {
+    entry.root.removeEventListener(eventName, entry.handler);
     containerListeners.delete(eventName);
   }
 }
@@ -109,9 +128,9 @@ function detachEvent(element: Element, key: string): void {
     const handlerMap = eventMap.get(eventName);
     if (handlerMap) {
       handlerMap.delete(element);
-      if (handlerMap.size === 0 && eventContainer) {
+      if (handlerMap.size === 0) {
         eventMap.delete(eventName);
-        removeContainerListener(eventName);
+        removeDelegatedListener(eventName);
       }
     }
   }
@@ -122,7 +141,7 @@ function detachAllEvents(element: Element): void {
     handlerMap.delete(element);
     if (handlerMap.size === 0) {
       eventMap.delete(eventName);
-      removeContainerListener(eventName);
+      removeDelegatedListener(eventName);
     }
   }
 }
@@ -149,11 +168,28 @@ function isSafeAttribute(key: string, value: unknown): boolean {
   return true;
 }
 
+function normalizeStyleKey(key: string): string {
+  if (key.startsWith('--')) return key;
+  return key.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
+}
+
+function applyStyleValue(el: HTMLElement, key: string, value: unknown): void {
+  const cssKey = normalizeStyleKey(key);
+  if (value === null || value === undefined || value === false) {
+    el.style.removeProperty(cssKey);
+  } else {
+    el.style.setProperty(cssKey, String(value));
+  }
+}
+
 function removeStyleKeys(el: HTMLElement, oldStyle: Record<string, unknown>, newStyle?: Record<string, unknown>): void {
   const newKeys = new Set(Object.keys(newStyle ?? {}));
   for (const key of Object.keys(oldStyle)) {
     if (!newKeys.has(key)) {
+      // Both: IDL assignment clears shorthands (background, font, ...) reliably,
+      // removeProperty covers hyphenated keys and custom properties (--x).
       (el.style as unknown as Record<string, string>)[key] = '';
+      el.style.removeProperty(normalizeStyleKey(key));
     }
   }
 }
@@ -209,12 +245,7 @@ function applyProps(element: Element, props: Record<string, unknown>): void {
     } else if (key === 'style' && typeof value === 'object' && value !== null) {
       const styleObj = value as Record<string, unknown>;
       for (const styleKey of Object.keys(styleObj)) {
-        const styleValue = styleObj[styleKey];
-        if (styleValue === null || styleValue === undefined || styleValue === false) {
-          (element as HTMLElement).style.removeProperty(styleKey);
-        } else {
-          (element as HTMLElement).style.setProperty(styleKey, String(styleValue));
-        }
+        applyStyleValue(element as HTMLElement, styleKey, styleObj[styleKey]);
       }
     } else if (key === 'dangerouslySetInnerHTML' && typeof value === 'object' && value !== null) {
       const html = (value as { __html: string }).__html;
@@ -315,16 +346,58 @@ export function createElement(vnode: VNode, parent?: Element): Element | Text | 
 
 export function removeVNode(vnode: VNode): void {
   pluginRunner.beforeUnmount(vnode);
-  if (vnode.ref) {
+  if (vnode.ref && vnode.type !== PORTAL) {
+    // Portal refs are mount targets (e.g. document.body) — never detach
+    // listeners from those; the recursion below cleans up the children.
     detachAllEvents(vnode.ref as Element);
+    execRef(vnode.props.ref, null);
+  } else if (vnode.ref) {
     execRef(vnode.props.ref, null);
   }
   if (vnode.children) {
-    for (let i = 0; i < vnode.children.length; i++) {
-      if (vnode.children[i]) removeVNode(vnode.children[i]);
+    // Guard against non-array children (defensive: Fragment normalizes, but
+    // user-built VNodes may carry a single child).
+    const children = Array.isArray(vnode.children) ? vnode.children : [vnode.children];
+    for (let i = 0; i < children.length; i++) {
+      if (children[i]) removeVNode(children[i]);
     }
   }
   pluginRunner.unmounted(vnode);
+}
+
+// Removes descendant DOM of portal/fragment VNodes from wherever they live
+// (portal targets or the parent). Guarded — already-detached nodes are skipped.
+function removeNestedDom(vnode: VNode): void {
+  const children = vnode.children
+    ? (Array.isArray(vnode.children) ? vnode.children : [vnode.children])
+    : EMPTY_ARR;
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    if (!child) continue;
+    if (child.type === PORTAL || child.type === FRAGMENT) {
+      removeNestedDom(child);
+      continue;
+    }
+    if (child.ref?.parentNode) child.ref.parentNode.removeChild(child.ref);
+    removeNestedDom(child);
+  }
+}
+
+// Full teardown of one child VNode: listeners/hooks via removeVNode plus DOM
+// removal that is correct for elements, text, fragments (no own ref) and
+// portals (DOM lives in the target, never in `parent`).
+function removeChildTree(parent: Element, vnode: VNode): void {
+  removeVNode(vnode);
+  if (vnode.type === PORTAL || vnode.type === FRAGMENT) {
+    removeNestedDom(vnode);
+    return;
+  }
+  const ref = vnode.ref;
+  if (ref?.parentNode) {
+    ref.parentNode.removeChild(ref);
+  } else if (ref) {
+    parent.removeChild(ref);
+  }
 }
 
 const EMPTY_ARR: VNode[] = [];
@@ -387,10 +460,7 @@ function reconcile(
   if (newHead > newTail) {
     for (let i = oldHead; i <= oldTail; i++) {
       const v = oldChildren[i];
-      if (v?.ref) {
-        removeVNode(v);
-        parent.removeChild(v.ref);
-      }
+      if (v) removeChildTree(parent, v);
     }
     return;
   }
@@ -405,16 +475,16 @@ function reconcile(
 
   for (let i = oldHead; i <= oldTail; i++) {
     const oldV = oldChildren[i];
-    if (oldV && oldV.ref) {
+    if (oldV) {
       const key = oldV.key ?? i;
       if (!newKeyMap.has(key)) {
-        removeVNode(oldV);
-        parent.removeChild(oldV.ref);
+        removeChildTree(parent, oldV);
       }
     }
   }
 
   const source: number[] = [];
+  const sourceNewPos: number[] = [];
   for (let i = newHead; i <= newTail; i++) {
     const newV = newChildren[i];
     if (!newV) continue;
@@ -422,13 +492,14 @@ function reconcile(
     const existing = oldByKey.get(key);
     if (existing) {
       source.push(existing.idx);
+      sourceNewPos.push(i);
     }
   }
 
   const lis = longestIncreasingSubsequence(source);
   const stable = new Set<number>();
   for (let i = 0; i < lis.length; i++) {
-    stable.add(newHead + lis[i]);
+    stable.add(sourceNewPos[lis[i]]);
   }
 
   for (let i = newTail; i >= newHead; i--) {
@@ -438,7 +509,9 @@ function reconcile(
     const existing = oldByKey.get(key);
     if (existing) {
       patchVNode(parent, existing.vnode, newV, existing.idx);
-      newV.ref = existing.vnode.ref;
+      // patchVNode sets newV.ref itself (incl. portal targets); only fall
+      // back to the old ref when it didn't (e.g. empty fragment results).
+      if (!newV.ref) newV.ref = existing.vnode.ref;
       if (!stable.has(i)) {
         const nextSibling = newChildren[i + 1]?.ref ?? null;
         const domNode = newV.ref;
@@ -461,6 +534,28 @@ function patchVNode(
 ): void {
   if (oldVNode === newVNode) return;
   pluginRunner.beforeUpdate(oldVNode, newVNode);
+
+  // Portals render into their own target, not `parent` — reconciling them as
+  // regular children corrupts both trees. Tear down the old side (portal
+  // children are removed from their target, replaced elements from `parent`)
+  // and mount the new one.
+  if (oldVNode.type === PORTAL || newVNode.type === PORTAL) {
+    removeVNode(oldVNode);
+    if (oldVNode.type === PORTAL) {
+      removeNestedDom(oldVNode);
+    } else if (oldVNode.ref?.parentNode) {
+      oldVNode.ref.parentNode.removeChild(oldVNode.ref);
+    }
+    const result = createElement(newVNode);
+    // createElement(portal) appends children to the portal target as a
+    // side-effect and returns []; nothing to insert into `parent`.
+    if (!Array.isArray(result) && result) {
+      parent.appendChild(result);
+      newVNode.ref = result as Element;
+    }
+    pluginRunner.updated(oldVNode, newVNode);
+    return;
+  }
 
   const existingElement = oldVNode.ref ?? (parent.childNodes[_index] as Element | Text | undefined);
 
@@ -550,7 +645,10 @@ function patchVNode(
       if (key === 'className' || key === 'classList') {
         setClass(el, newVal);
       } else if (key === 'style' && typeof newVal === 'object' && newVal !== null) {
-        Object.assign((el as HTMLElement).style, newVal);
+        const styleObj = newVal as Record<string, unknown>;
+        for (const styleKey of Object.keys(styleObj)) {
+          applyStyleValue(el as HTMLElement, styleKey, styleObj[styleKey]);
+        }
       } else if (key === 'dangerouslySetInnerHTML' && typeof newVal === 'object' && newVal !== null) {
         const html = (newVal as { __html: string }).__html;
         if (typeof html === 'string') {
@@ -599,15 +697,7 @@ function buildKeyMap(children: VNode[]): Map<string | number, VNode> {
 
 export function render(vnode: VNode, container: Element): void {
   if (eventContainer !== container) {
-    if (eventContainer) {
-      for (const [eventName, entry] of containerListeners) {
-        if (entry.container === eventContainer) {
-          eventContainer.removeEventListener(eventName, entry.handler);
-        }
-      }
-    }
-    containerListeners.clear();
-    eventMap.clear();
+    clearDelegation();
   }
   setEventContainer(container);
   container.innerHTML = '';
@@ -624,7 +714,25 @@ export function render(vnode: VNode, container: Element): void {
 }
 
 export function patch(container: Element, oldVNode: VNode, newVNode: VNode): void {
-  if (oldVNode.type === FRAGMENT || newVNode.type === FRAGMENT) {
+  // Portal patching is handled inside patchVNode (different mount target).
+  if (oldVNode.type === PORTAL || newVNode.type === PORTAL) {
+    patchVNode(container, oldVNode, newVNode, 0);
+    return;
+  }
+  if (oldVNode.type === EMPTY && newVNode.type === EMPTY) return;
+  if (oldVNode.type === EMPTY) {
+    appendToParent(container, createElement(newVNode));
+    return;
+  }
+  if (newVNode.type === EMPTY) {
+    // removeChildTree handles elements, text, fragments and portals
+    // (a portal ref is its target — never remove that from `container`).
+    removeChildTree(container, oldVNode);
+    return;
+  }
+  if (
+    oldVNode.type === FRAGMENT || newVNode.type === FRAGMENT
+  ) {
     const oldChildren = oldVNode.type === FRAGMENT ? (oldVNode.children || []) : [oldVNode];
     const newChildren = newVNode.type === FRAGMENT ? (newVNode.children || []) : [newVNode];
     reconcile(container, oldChildren, newChildren, buildKeyMap(newChildren));

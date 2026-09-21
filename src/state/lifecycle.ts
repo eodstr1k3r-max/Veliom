@@ -1,4 +1,4 @@
-import type { ComponentInstance, ComponentProps } from '../core/component.js';
+import type { ComponentProps } from '../core/component.js';
 
 type LifecycleHook = () => void | (() => void);
 type CleanupFn = () => void;
@@ -9,27 +9,7 @@ export interface LifecycleCallbacks {
   onUnmount?: CleanupFn;
 }
 
-const lifecycleRegistry = new WeakMap<ComponentInstance, LifecycleCallbacks>();
 const mountedSet = new WeakSet<LifecycleCallbacks>();
-
-export function registerLifecycle(
-  instance: ComponentInstance,
-  callbacks: LifecycleCallbacks
-): void {
-  lifecycleRegistry.set(instance, callbacks);
-}
-
-export function unregisterLifecycle(instance: ComponentInstance): void {
-  const callbacks = lifecycleRegistry.get(instance);
-  if (callbacks?.onUnmount) {
-    callbacks.onUnmount();
-  }
-  lifecycleRegistry.delete(instance);
-}
-
-export function getLifecycle(instance: ComponentInstance): LifecycleCallbacks | undefined {
-  return lifecycleRegistry.get(instance);
-}
 
 export function triggerOnMount(callbacks: LifecycleCallbacks): void {
   if (mountedSet.has(callbacks)) return;
@@ -48,42 +28,48 @@ export function triggerOnMount(callbacks: LifecycleCallbacks): void {
 
 export function onMount(fn: LifecycleHook): void {
   const callbacks = getCurrentLifecycle();
-  if (callbacks) {
-    const original = callbacks.onMount;
-    callbacks.onMount = () => {
-      original?.();
-      const cleanup = fn();
-      if (typeof cleanup === 'function') {
-        const originalUnmount = callbacks.onUnmount;
-        callbacks.onUnmount = () => {
-          cleanup();
-          originalUnmount?.();
-        };
-      }
-    };
+  if (!callbacks) {
+    console.warn('Veliom: onMount called outside a component — no-op');
+    return;
   }
+  const original = callbacks.onMount;
+  callbacks.onMount = () => {
+    original?.();
+    const cleanup = fn();
+    if (typeof cleanup === 'function') {
+      const originalUnmount = callbacks.onUnmount;
+      callbacks.onUnmount = () => {
+        cleanup();
+        originalUnmount?.();
+      };
+    }
+  };
 }
 
 export function onUpdate(fn: (prevProps: ComponentProps) => void): void {
   const callbacks = getCurrentLifecycle();
-  if (callbacks) {
-    const original = callbacks.onUpdate;
-    callbacks.onUpdate = (prevProps: ComponentProps) => {
-      original?.(prevProps);
-      fn(prevProps);
-    };
+  if (!callbacks) {
+    console.warn('Veliom: onUpdate called outside a component — no-op');
+    return;
   }
+  const original = callbacks.onUpdate;
+  callbacks.onUpdate = (prevProps: ComponentProps) => {
+    original?.(prevProps);
+    fn(prevProps);
+  };
 }
 
 export function onUnmount(fn: CleanupFn): void {
   const callbacks = getCurrentLifecycle();
-  if (callbacks) {
-    const original = callbacks.onUnmount;
-    callbacks.onUnmount = () => {
-      fn();
-      original?.();
-    };
+  if (!callbacks) {
+    console.warn('Veliom: onUnmount called outside a component — no-op');
+    return;
   }
+  const original = callbacks.onUnmount;
+  callbacks.onUnmount = () => {
+    fn();
+    original?.();
+  };
 }
 
 const lifecycleStack: LifecycleCallbacks[] = [];

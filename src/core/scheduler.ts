@@ -29,6 +29,11 @@ function flushQueue(): void {
     queue[i]();
   }
   flushing = false;
+  // Callbacks may schedule follow-ups while flushing (no new frame is
+  // requested in that case) — drain them instead of stranding them.
+  if (pendingCallbacks.length > 0) {
+    scheduleFrame();
+  }
 }
 
 export function scheduleDOMUpdate(fn: () => void): void {

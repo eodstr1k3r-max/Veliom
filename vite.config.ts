@@ -1,5 +1,8 @@
 import { defineConfig } from 'vite';
-import { resolve } from 'path';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   root: 'examples',
@@ -16,6 +19,7 @@ export default defineConfig({
         api: resolve(__dirname, 'examples/api-example.html'),
         features: resolve(__dirname, 'examples/features.html'),
         lazy: resolve(__dirname, 'examples/lazy-demo.html'),
+        router: resolve(__dirname, 'examples/router-demo.html'),
       },
     },
   },
