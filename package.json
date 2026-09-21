@@ -16,10 +16,10 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist",
     "docs",
     "examples",
     "src",
+    "AUDIT_REPORT.md",
     "CHANGELOG.md",
     "CONTRIBUTING.md",
     "eslint.config.js",
@@ -28,8 +28,7 @@
     "README.md",
     "tsconfig.json",
     "tsconfig.cjs.json",
-    "vite.config.ts",
-    "vitest.config.ts"
+    "vite.config.ts"
   ],
   "scripts": {
     "dev": "vite",
